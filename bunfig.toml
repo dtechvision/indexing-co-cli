@@ -1,0 +1,9 @@
+[install]
+# Bun configuration for dependency installation
+cache = true
+exact = false
+dev = true
+
+[run]
+# Enable bun shell for scripts
+shell = "bun" 
