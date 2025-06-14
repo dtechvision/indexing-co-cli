@@ -5,8 +5,8 @@ A CLI tool for interacting with the indexing.co API.
 ## Installation
 
 ```bash
-npm install
-npm run build
+bun install
+bun run build
 ```
 
 ## Usage
@@ -31,7 +31,19 @@ bun src/bin.ts pipelines --api-key "your-api-key-here"
 ### Available Commands
 
 - `hello` - Simple hello world command
-- `pipelines` - Fetch all pipelines from indexing.co API
+- `pipelines` - Manage pipelines with subcommands:
+  - `list` - List all pipelines
+  - `create` - Create a new pipeline
+  - `backfill` - Backfill a pipeline
+  - `delete` - Delete a pipeline
+- `filters` - Manage filters with subcommands:
+  - `list` - List all filters
+  - `create` - Create a new filter
+  - `remove` - Remove values from a filter
+- `transformations` - Manage transformations with subcommands:
+  - `list` - List all transformations
+  - `test` - Test a transformation
+  - `create` - Create/commit a transformation
 
 ### Help
 
