@@ -5,8 +5,7 @@ A CLI tool for interacting with the indexing.co API.
 ## Installation
 
 ```bash
-bun install
-bun run build
+npm install -g @dtechvision/indexingco-cli
 ```
 
 ## Usage
@@ -17,7 +16,7 @@ Set the API key as an environment variable:
 
 ```bash
 export INDEXING_API_KEY="your-api-key-here"
-bun src/bin.ts pipelines
+indexingco pipelines
 ```
 
 ### CLI Argument
@@ -25,7 +24,7 @@ bun src/bin.ts pipelines
 Pass the API key as a command line argument:
 
 ```bash
-bun src/bin.ts pipelines --api-key "your-api-key-here"
+indexingco pipelines --api-key "your-api-key-here"
 ```
 
 ### Available Commands
@@ -48,6 +47,6 @@ bun src/bin.ts pipelines --api-key "your-api-key-here"
 ### Help
 
 ```bash
-bun src/bin.ts --help
-bun src/bin.ts pipelines --help
+indexingco --help
+indexingco pipelines --help
 ```

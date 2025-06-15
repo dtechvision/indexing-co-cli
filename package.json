@@ -23,8 +23,9 @@
     "test": "vitest run",
     "coverage": "vitest run --coverage",
     "copy-package-json": "bun scripts/copy-package-json.ts",
-    "changeset-version": "changeset version && node scripts/version.mjs",
-    "changeset-publish": "bun run build && TEST_DIST= bun vitest && changeset publish"
+    "changeset-version": "changeset version && bun scripts/version.mjs",
+    "changeset-publish": "bun run build && TEST_DIST= bun vitest && changeset publish",
+    "release": "bun scripts/release.mjs"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^0.5.0",
