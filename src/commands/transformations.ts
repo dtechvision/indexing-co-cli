@@ -106,14 +106,16 @@ export const transformationsTestCommand = Command.make(
 
       const url = `https://app.indexing.co/dw/transformations/test?network=${args.network}&beat=${args.beat}`
 
-      const request = HttpClientRequest.post(url).pipe(
-        HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key)),
-        HttpClientRequest.setHeader("Content-Type", "application/javascript"),
-        HttpClientRequest.bodyText(fileContent)
-      )
+      const response = yield* Effect.gen(function*() {
+        const request = yield* HttpClientRequest.post(url).pipe(
+          HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key)),
+          HttpClientRequest.setHeader("Content-Type", "application/json"),
+          HttpClientRequest.bodyJson({ code: fileContent })
+        )
 
-      const response = yield* client.execute(request).pipe(
-        Effect.flatMap((response) => response.json),
+        const httpResponse = yield* client.execute(request)
+        return yield* httpResponse.json
+      }).pipe(
         Effect.catchAll((error) => {
           return Console.error(`Failed to test transformation: ${error}`).pipe(
             Effect.flatMap(() => Effect.fail(error))
@@ -153,14 +155,16 @@ export const transformationsCreateCommand = Command.make(
 
       const url = `https://app.indexing.co/dw/transformations/${args.name}`
 
-      const request = HttpClientRequest.post(url).pipe(
-        HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key)),
-        HttpClientRequest.setHeader("Content-Type", "application/javascript"),
-        HttpClientRequest.bodyText(fileContent)
-      )
+      const response = yield* Effect.gen(function*() {
+        const request = yield* HttpClientRequest.post(url).pipe(
+          HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key)),
+          HttpClientRequest.setHeader("Content-Type", "application/json"),
+          HttpClientRequest.bodyJson({ code: fileContent })
+        )
 
-      const response = yield* client.execute(request).pipe(
-        Effect.flatMap((response) => response.json),
+        const httpResponse = yield* client.execute(request)
+        return yield* httpResponse.json
+      }).pipe(
         Effect.catchAll((error) => {
           return Console.error(`Failed to create transformation: ${error}`).pipe(
             Effect.flatMap(() => Effect.fail(error))
