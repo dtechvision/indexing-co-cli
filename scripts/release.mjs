@@ -49,7 +49,7 @@ try {
   // 3. Commit changes
   console.log("📝 Committing changes...")
   execSync("git add .", { stdio: "inherit" })
-  execSync(`git commit -m "chore: release v${newVersion}"`, { stdio: "inherit" })
+  execSync(`git commit -m "v${newVersion}"`, { stdio: "inherit" })
 
   // 4. Create and push tag
   console.log("🏷️  Creating version tag...")

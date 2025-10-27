@@ -80,10 +80,15 @@ export const transformationsTestCommand = Command.make(
   {
     apiKey: apiKeyOption,
     network: Options.text("network").pipe(
-      Options.withDescription("Network to test against (e.g., base_sepolia)")
+      Options.withDescription("Network to test against (e.g., base_sepolia, farcaster)")
     ),
     beat: Options.text("beat").pipe(
-      Options.withDescription("Block beat to test against")
+      Options.optional,
+      Options.withDescription("Block beat to test against (e.g., 123)")
+    ),
+    hash: Options.text("hash").pipe(
+      Options.optional,
+      Options.withDescription("Hash to test against (e.g., 0x123abc for block hash, or cast hash for Farcaster)")
     ),
     file: Args.file({ name: "file", exists: "yes" }).pipe(
       Args.withDescription("Path to the JavaScript transformation file")
@@ -95,6 +100,12 @@ export const transformationsTestCommand = Command.make(
       const key = yield* getApiKey(args.apiKey)
       const fs = yield* FileSystem.FileSystem
 
+      // Validate that either beat or hash is provided
+      if (Option.isNone(args.beat) && Option.isNone(args.hash)) {
+        yield* Console.error("Either --beat or --hash must be provided")
+        return yield* Effect.fail(new Error("Missing required parameter: beat or hash"))
+      }
+
       // Read the transformation file
       const fileContent = yield* fs.readFileString(args.file).pipe(
         Effect.catchAll((error) => {
@@ -104,7 +115,13 @@ export const transformationsTestCommand = Command.make(
         })
       )
 
-      const url = `https://app.indexing.co/dw/transformations/test?network=${args.network}&beat=${args.beat}`
+      // Build URL with appropriate parameter
+      let url = `https://app.indexing.co/dw/transformations/test?network=${args.network}`
+      if (Option.isSome(args.beat)) {
+        url += `&beat=${args.beat.value}`
+      } else if (Option.isSome(args.hash)) {
+        url += `&hash=${args.hash.value}`
+      }
 
       const response = yield* Effect.gen(function*() {
         const request = yield* HttpClientRequest.post(url).pipe(

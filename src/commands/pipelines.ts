@@ -72,7 +72,9 @@ export const pipelinesCreateCommand = Command.make(
   "create",
   {
     apiKey: apiKeyOption,
-    name: Args.text({ name: "name" }).pipe(Args.withDescription("Name of the pipeline")),
+    name: Options.text("name").pipe(
+      Options.withDescription("Name of the pipeline")
+    ),
     transformation: Options.text("transformation").pipe(
       Options.withDescription("Name of the transformation to use")
     ),
@@ -124,6 +126,10 @@ export const pipelinesCreateCommand = Command.make(
           }
         }
       }
+
+      // Add debug logging
+      yield* Console.log("Request body:")
+      yield* Console.log(JSON.stringify(requestBody, null, 2))
 
       const request = HttpClientRequest.post("https://app.indexing.co/dw/pipelines").pipe(
         HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key)),
@@ -212,6 +218,61 @@ export const pipelinesBackfillCommand = Command.make(
     })
 )
 
+// Command to test a pipeline (e2e testing)
+export const pipelinesTestCommand = Command.make(
+  "test",
+  {
+    apiKey: apiKeyOption,
+    name: Args.text({ name: "name" }).pipe(Args.withDescription("Name of the pipeline")),
+    network: Args.text({ name: "network" }).pipe(
+      Args.withDescription("Network to test against (e.g., base_sepolia, farcaster)")
+    ),
+    beat: Args.text({ name: "beat" }).pipe(
+      Args.optional,
+      Args.withDescription("Block beat to test against (e.g., 123)")
+    ),
+    hash: Args.text({ name: "hash" }).pipe(
+      Args.optional,
+      Args.withDescription("Hash to test against (e.g., 0x123abc for block hash, or cast hash for Farcaster)")
+    )
+  },
+  (args) =>
+    Effect.gen(function*() {
+      const client = yield* HttpClient.HttpClient
+      const key = yield* getApiKey(args.apiKey)
+
+      // Validate that either beat or hash is provided
+      if (Option.isNone(args.beat) && Option.isNone(args.hash)) {
+        yield* Console.error("Either beat or hash must be provided")
+        return yield* Effect.fail(new Error("Missing required parameter: beat or hash"))
+      }
+
+      // Build URL with appropriate parameter
+      let url = `https://app.indexing.co/dw/pipelines/${args.name}/test/${args.network}`
+      if (Option.isSome(args.beat)) {
+        url += `/${args.beat.value}`
+      } else if (Option.isSome(args.hash)) {
+        url += `/${args.hash.value}`
+      }
+
+      const request = HttpClientRequest.post(url).pipe(
+        HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key))
+      )
+
+      const response = yield* client.execute(request).pipe(
+        Effect.flatMap((response) => response.json),
+        Effect.catchAll((error) => {
+          return Console.error(`Failed to test pipeline: ${error}`).pipe(
+            Effect.flatMap(() => Effect.fail(error))
+          )
+        })
+      )
+
+      yield* Console.log(`Pipeline '${args.name}' test result:`)
+      yield* Console.log(JSON.stringify(response, null, 2))
+    })
+)
+
 // Command to delete a pipeline by name
 export const pipelinesDeleteCommand = Command.make(
   "delete",
@@ -248,6 +309,7 @@ export const pipelinesCommand = Command.make("pipelines").pipe(
     pipelinesListCommand,
     pipelinesCreateCommand,
     pipelinesBackfillCommand,
+    pipelinesTestCommand,
     pipelinesDeleteCommand
   ])
 )
