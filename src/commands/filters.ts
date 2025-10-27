@@ -86,15 +86,20 @@ export const filtersRemoveCommand = Command.make(
       const client = yield* HttpClient.HttpClient
       const key = yield* getApiKey(args.apiKey)
 
-      const requestBody = {
-        values: args.values
+      const values = Array.from(args.values) // Options.repeated returns an Effect Chunk; convert to array
+      if (values.length === 0) {
+        yield* Console.error("At least one --values flag is required")
+        return yield* Effect.fail(new Error("No values provided"))
       }
 
-      const request = HttpClientRequest.del(`https://app.indexing.co/dw/filters/${args.name}`).pipe(
-        HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key)),
-        HttpClientRequest.setHeader("Content-Type", "application/json"),
-        HttpClientRequest.bodyText(JSON.stringify(requestBody))
+      const requestBody = {
+        values
+      }
+
+      const requestBase = HttpClientRequest.del(`https://app.indexing.co/dw/filters/${args.name}`).pipe(
+        HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key))
       )
+      const request = yield* HttpClientRequest.bodyJson(requestBody)(requestBase)
 
       const response = yield* client.execute(request).pipe(
         Effect.flatMap((response) => response.json),
@@ -126,15 +131,20 @@ export const filtersCreateCommand = Command.make(
       const client = yield* HttpClient.HttpClient
       const key = yield* getApiKey(args.apiKey)
 
-      const requestBody = {
-        values: args.values
+      const values = Array.from(args.values) // Options.repeated returns an Effect Chunk; convert to array
+      if (values.length === 0) {
+        yield* Console.error("At least one --values flag is required")
+        return yield* Effect.fail(new Error("No values provided"))
       }
 
-      const request = HttpClientRequest.post(`https://app.indexing.co/dw/filters/${args.name}`).pipe(
-        HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key)),
-        HttpClientRequest.setHeader("Content-Type", "application/json"),
-        HttpClientRequest.bodyText(JSON.stringify(requestBody))
+      const requestBody = {
+        values
+      }
+
+      const requestBase = HttpClientRequest.post(`https://app.indexing.co/dw/filters/${args.name}`).pipe(
+        HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key))
       )
+      const request = yield* HttpClientRequest.bodyJson(requestBody)(requestBase)
 
       const response = yield* client.execute(request).pipe(
         Effect.flatMap((response) => response.json),
