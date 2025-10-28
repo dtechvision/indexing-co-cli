@@ -3,47 +3,12 @@ import * as Command from "@effect/cli/Command"
 import * as Options from "@effect/cli/Options"
 import * as FileSystem from "@effect/platform/FileSystem"
 import * as HttpClient from "@effect/platform/HttpClient"
-import * as HttpClientRequest from "@effect/platform/HttpClientRequest"
-import * as Config from "effect/Config"
 import * as Console from "effect/Console"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
-import * as Redacted from "effect/Redacted"
-
-// Configuration for API key - reads from environment variable
-const apiKeyConfig = Config.redacted("API_KEY_INDEXING_CO").pipe(
-  Config.withDescription("API key for indexing.co")
-)
-
-// CLI option for API key
-const apiKeyOption = Options.redacted("api-key").pipe(
-  Options.optional,
-  Options.withDescription("API key for indexing.co (overrides API_KEY_INDEXING_CO env var)")
-)
-
-// Helper function to get API key
-const getApiKey = (cliApiKey: Option.Option<Redacted.Redacted>) =>
-  Effect.gen(function*() {
-    const key = yield* (Option.isSome(cliApiKey)
-      ? Effect.succeed(cliApiKey.value)
-      : Config.option(apiKeyConfig).pipe(
-        Effect.flatMap((maybeKey) =>
-          Option.isSome(maybeKey)
-            ? Effect.succeed(maybeKey.value)
-            : Effect.fail(new Error("API key not found"))
-        )
-      )).pipe(
-        Effect.catchAll(() =>
-          Effect.gen(function*() {
-            yield* Console.error(
-              "API key is required. Set API_KEY_INDEXING_CO environment variable or use --api-key option"
-            )
-            return yield* Effect.fail(new Error("Missing API key"))
-          })
-        )
-      )
-    return key
-  })
+import { apiKeyOption, resolveApiKey } from "../config/apiKey.js"
+import { createTransformation, listTransformations, testTransformation } from "../services/transformations.js"
+import type { TransformationTestRequest } from "../services/types.js"
 
 // Note: List all transformations endpoint doesn't exist
 
@@ -54,23 +19,12 @@ export const transformationsListCommand = Command.make(
   (args) =>
     Effect.gen(function*() {
       const client = yield* HttpClient.HttpClient
-      const key = yield* getApiKey(args.apiKey)
+      const key = yield* resolveApiKey(args.apiKey)
 
-      const request = HttpClientRequest.get("https://app.indexing.co/dw/transformations").pipe(
-        HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key))
-      )
-
-      const response = yield* client.execute(request).pipe(
-        Effect.flatMap((response) => response.json),
-        Effect.catchAll((error) => {
-          return Console.error(`Failed to fetch transformations: ${error}`).pipe(
-            Effect.flatMap(() => Effect.fail(error))
-          )
-        })
-      )
+      const transformations = yield* listTransformations(client, key)
 
       yield* Console.log("Transformations fetched successfully:")
-      yield* Console.log(JSON.stringify(response, null, 2))
+      yield* Console.log(JSON.stringify(transformations.raw, null, 2))
     })
 )
 
@@ -97,7 +51,7 @@ export const transformationsTestCommand = Command.make(
   (args) =>
     Effect.gen(function*() {
       const client = yield* HttpClient.HttpClient
-      const key = yield* getApiKey(args.apiKey)
+      const key = yield* resolveApiKey(args.apiKey)
       const fs = yield* FileSystem.FileSystem
 
       // Validate that either beat or hash is provided
@@ -115,30 +69,14 @@ export const transformationsTestCommand = Command.make(
         })
       )
 
-      // Build URL with appropriate parameter
-      let url = `https://app.indexing.co/dw/transformations/test?network=${args.network}`
-      if (Option.isSome(args.beat)) {
-        url += `&beat=${args.beat.value}`
-      } else if (Option.isSome(args.hash)) {
-        url += `&hash=${args.hash.value}`
+      const request: TransformationTestRequest = {
+        network: args.network,
+        ...(Option.isSome(args.beat) ? { beat: args.beat.value } : {}),
+        ...(Option.isSome(args.hash) ? { hash: args.hash.value } : {}),
+        code: fileContent
       }
 
-      const response = yield* Effect.gen(function*() {
-        const request = yield* HttpClientRequest.post(url).pipe(
-          HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key)),
-          HttpClientRequest.setHeader("Content-Type", "application/json"),
-          HttpClientRequest.bodyJson({ code: fileContent })
-        )
-
-        const httpResponse = yield* client.execute(request)
-        return yield* httpResponse.json
-      }).pipe(
-        Effect.catchAll((error) => {
-          return Console.error(`Failed to test transformation: ${error}`).pipe(
-            Effect.flatMap(() => Effect.fail(error))
-          )
-        })
-      )
+      const response = yield* testTransformation(client, key, request)
 
       yield* Console.log("Transformation test result:")
       yield* Console.log(JSON.stringify(response, null, 2))
@@ -158,7 +96,7 @@ export const transformationsCreateCommand = Command.make(
   (args) =>
     Effect.gen(function*() {
       const client = yield* HttpClient.HttpClient
-      const key = yield* getApiKey(args.apiKey)
+      const key = yield* resolveApiKey(args.apiKey)
       const fs = yield* FileSystem.FileSystem
 
       // Read the transformation file
@@ -170,24 +108,7 @@ export const transformationsCreateCommand = Command.make(
         })
       )
 
-      const url = `https://app.indexing.co/dw/transformations/${args.name}`
-
-      const response = yield* Effect.gen(function*() {
-        const request = yield* HttpClientRequest.post(url).pipe(
-          HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key)),
-          HttpClientRequest.setHeader("Content-Type", "application/json"),
-          HttpClientRequest.bodyJson({ code: fileContent })
-        )
-
-        const httpResponse = yield* client.execute(request)
-        return yield* httpResponse.json
-      }).pipe(
-        Effect.catchAll((error) => {
-          return Console.error(`Failed to create transformation: ${error}`).pipe(
-            Effect.flatMap(() => Effect.fail(error))
-          )
-        })
-      )
+      const response = yield* createTransformation(client, key, args.name, fileContent)
 
       yield* Console.log(`Transformation '${args.name}' created successfully:`)
       yield* Console.log(JSON.stringify(response, null, 2))

@@ -9,6 +9,11 @@
     "type": "git",
     "url": "git+https://github.com/dtechvision/indexing-co-cli.git"
   },
+  "dependencies": {
+    "ink": "^4.4.1",
+    "react": "^18.3.1",
+    "react-reconciler": "^0.29.0"
+  },
   "publishConfig": {
     "access": "public",
     "directory": "dist"
@@ -20,12 +25,13 @@
     "check": "tsc -b tsconfig.json",
     "lint": "eslint \"**/{src,test,examples,scripts,dtslint}/**/*.{ts,mjs}\"",
     "lint-fix": "bun run lint --fix",
-    "test": "vitest run",
+    "test": "node ./node_modules/vitest/vitest.mjs run",
     "coverage": "vitest run --coverage",
     "copy-package-json": "bun scripts/copy-package-json.ts",
     "changeset-version": "changeset version && bun scripts/version.mjs",
     "changeset-publish": "bun run build && TEST_DIST= bun vitest && changeset publish",
-    "release": "bun scripts/release.mjs"
+    "release": "bun scripts/release.mjs",
+    "postinstall": "patch-package"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^0.5.0",
@@ -40,9 +46,11 @@
     "@eslint/eslintrc": "3.1.0",
     "@eslint/js": "9.10.0",
     "@types/node": "^22.5.2",
+    "@types/react": "^18.3.5",
     "@typescript-eslint/eslint-plugin": "^8.4.0",
     "@typescript-eslint/parser": "^8.4.0",
     "effect": "latest",
+    "ink-testing-library": "^4.0.0",
     "eslint": "^9.10.0",
     "eslint-import-resolver-typescript": "^3.6.3",
     "eslint-plugin-codegen": "0.28.0",
@@ -50,6 +58,7 @@
     "eslint-plugin-import": "^2.30.0",
     "eslint-plugin-simple-import-sort": "^12.1.1",
     "eslint-plugin-sort-destructure-keys": "^2.0.0",
+    "patch-package": "^8.0.0",
     "tsup": "^8.2.4",
     "typescript": "^5.6.2",
     "vitest": "^2.0.5"

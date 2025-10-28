@@ -1,9 +1,15 @@
 import * as Command from "@effect/cli/Command"
-import { filtersCommand, helloCommand, pipelinesCommand, transformationsCommand } from "./commands/index.js"
+import {
+  filtersCommand,
+  helloCommand,
+  pipelinesCommand,
+  transformationsCommand,
+  tuiCommand
+} from "./commands/index.js"
 
 // Main CLI with subcommands
 const cli = Command.make("indexingco").pipe(
-  Command.withSubcommands([helloCommand, pipelinesCommand, filtersCommand, transformationsCommand])
+  Command.withSubcommands([helloCommand, pipelinesCommand, filtersCommand, transformationsCommand, tuiCommand])
 )
 
 export const run = Command.run(cli, {

@@ -2,69 +2,23 @@ import * as Args from "@effect/cli/Args"
 import * as Command from "@effect/cli/Command"
 import * as Options from "@effect/cli/Options"
 import * as HttpClient from "@effect/platform/HttpClient"
-import * as HttpClientRequest from "@effect/platform/HttpClientRequest"
-import * as Config from "effect/Config"
 import * as Console from "effect/Console"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
-import * as Redacted from "effect/Redacted"
-
-// Configuration for API key - reads from environment variable
-const apiKeyConfig = Config.redacted("API_KEY_INDEXING_CO").pipe(
-  Config.withDescription("API key for indexing.co")
-)
-
-// CLI option for API key
-const apiKeyOption = Options.redacted("api-key").pipe(
-  Options.optional,
-  Options.withDescription("API key for indexing.co (overrides API_KEY_INDEXING_CO env var)")
-)
-
-// Helper function to get API key
-const getApiKey = (cliApiKey: Option.Option<Redacted.Redacted>) =>
-  Effect.gen(function*() {
-    const key = yield* (Option.isSome(cliApiKey)
-      ? Effect.succeed(cliApiKey.value)
-      : Config.option(apiKeyConfig).pipe(
-        Effect.flatMap((maybeKey) =>
-          Option.isSome(maybeKey)
-            ? Effect.succeed(maybeKey.value)
-            : Effect.fail(new Error("API key not found"))
-        )
-      )).pipe(
-        Effect.catchAll(() =>
-          Effect.gen(function*() {
-            yield* Console.error(
-              "API key is required. Set API_KEY_INDEXING_CO environment variable or use --api-key option"
-            )
-            return yield* Effect.fail(new Error("Missing API key"))
-          })
-        )
-      )
-    return key
-  })
+import { apiKeyOption, resolveApiKey } from "../config/apiKey.js"
+import { backfillPipeline, createPipeline, deletePipeline, listPipelines, testPipeline } from "../services/pipelines.js"
+import type { PipelineBackfillRequest, PipelineCreateRequest, PipelineTestRequest } from "../services/types.js"
 
 // Command to list all pipelines
 export const pipelinesListCommand = Command.make("list", { apiKey: apiKeyOption }, (args) =>
   Effect.gen(function*() {
     const client = yield* HttpClient.HttpClient
-    const key = yield* getApiKey(args.apiKey)
+    const key = yield* resolveApiKey(args.apiKey)
 
-    const request = HttpClientRequest.get("https://app.indexing.co/dw/pipelines").pipe(
-      HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key))
-    )
-
-    const response = yield* client.execute(request).pipe(
-      Effect.flatMap((response) => response.json),
-      Effect.catchAll((error) => {
-        return Console.error(`Failed to fetch pipelines: ${error}`).pipe(
-          Effect.flatMap(() => Effect.fail(error))
-        )
-      })
-    )
+    const pipelines = yield* listPipelines(client, key)
 
     yield* Console.log("Pipelines fetched successfully:")
-    yield* Console.log(JSON.stringify(response, null, 2))
+    yield* Console.log(JSON.stringify(pipelines.raw, null, 2))
   }))
 
 // Command to create a pipeline
@@ -104,7 +58,7 @@ export const pipelinesCreateCommand = Command.make(
   (args) =>
     Effect.gen(function*() {
       const client = yield* HttpClient.HttpClient
-      const key = yield* getApiKey(args.apiKey)
+      const key = yield* resolveApiKey(args.apiKey)
 
       // Build headers object for webhook
       const headers: Record<string, string> = {}
@@ -112,7 +66,11 @@ export const pipelinesCreateCommand = Command.make(
         headers[args.authHeader.value] = args.authValue.value
       }
 
-      const requestBody = {
+      const connection: PipelineCreateRequest["delivery"]["connection"] = Object.keys(headers).length > 0
+        ? { host: args.webhookUrl, headers }
+        : { host: args.webhookUrl }
+
+      const requestBody: PipelineCreateRequest = {
         name: args.name,
         transformation: args.transformation,
         filter: args.filter,
@@ -120,31 +78,14 @@ export const pipelinesCreateCommand = Command.make(
         networks: args.networks,
         delivery: {
           adapter: "HTTP",
-          connection: {
-            host: args.webhookUrl,
-            headers
-          }
+          connection
         }
       }
 
       // Add debug logging
       yield* Console.log("Request body:")
       yield* Console.log(JSON.stringify(requestBody, null, 2))
-
-      const request = HttpClientRequest.post("https://app.indexing.co/dw/pipelines").pipe(
-        HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key)),
-        HttpClientRequest.setHeader("Content-Type", "application/json"),
-        HttpClientRequest.bodyText(JSON.stringify(requestBody))
-      )
-
-      const response = yield* client.execute(request).pipe(
-        Effect.flatMap((response) => response.json),
-        Effect.catchAll((error) => {
-          return Console.error(`Failed to create pipeline: ${error}`).pipe(
-            Effect.flatMap(() => Effect.fail(error))
-          )
-        })
-      )
+      const response = yield* createPipeline(client, key, requestBody)
 
       yield* Console.log(`Pipeline '${args.name}' created successfully:`)
       yield* Console.log(JSON.stringify(response, null, 2))
@@ -179,39 +120,17 @@ export const pipelinesBackfillCommand = Command.make(
   (args) =>
     Effect.gen(function*() {
       const client = yield* HttpClient.HttpClient
-      const key = yield* getApiKey(args.apiKey)
+      const key = yield* resolveApiKey(args.apiKey)
 
-      // Build request body
-      const requestBody: any = {
+      const requestBody: PipelineBackfillRequest = {
         network: args.network,
-        value: args.value
+        value: args.value,
+        ...(Option.isSome(args.beatStart) ? { beatStart: args.beatStart.value } : {}),
+        ...(Option.isSome(args.beatEnd) ? { beatEnd: args.beatEnd.value } : {}),
+        ...(args.beats.length > 0 ? { beats: args.beats } : {})
       }
 
-      // Add optional parameters if provided
-      if (Option.isSome(args.beatStart)) {
-        requestBody.beatStart = args.beatStart.value
-      }
-      if (Option.isSome(args.beatEnd)) {
-        requestBody.beatEnd = args.beatEnd.value
-      }
-      if (args.beats.length > 0) {
-        requestBody.beats = args.beats
-      }
-
-      const request = HttpClientRequest.post(`https://app.indexing.co/dw/pipelines/${args.name}/backfill`).pipe(
-        HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key)),
-        HttpClientRequest.setHeader("Content-Type", "application/json"),
-        HttpClientRequest.bodyText(JSON.stringify(requestBody))
-      )
-
-      const response = yield* client.execute(request).pipe(
-        Effect.flatMap((response) => response.json),
-        Effect.catchAll((error) => {
-          return Console.error(`Failed to backfill pipeline: ${error}`).pipe(
-            Effect.flatMap(() => Effect.fail(error))
-          )
-        })
-      )
+      const response = yield* backfillPipeline(client, key, args.name, requestBody)
 
       yield* Console.log(`Pipeline '${args.name}' backfill initiated successfully:`)
       yield* Console.log(JSON.stringify(response, null, 2))
@@ -239,7 +158,7 @@ export const pipelinesTestCommand = Command.make(
   (args) =>
     Effect.gen(function*() {
       const client = yield* HttpClient.HttpClient
-      const key = yield* getApiKey(args.apiKey)
+      const key = yield* resolveApiKey(args.apiKey)
 
       // Validate that either beat or hash is provided
       if (Option.isNone(args.beat) && Option.isNone(args.hash)) {
@@ -247,26 +166,13 @@ export const pipelinesTestCommand = Command.make(
         return yield* Effect.fail(new Error("Missing required parameter: beat or hash"))
       }
 
-      // Build URL with appropriate parameter
-      let url = `https://app.indexing.co/dw/pipelines/${args.name}/test/${args.network}`
-      if (Option.isSome(args.beat)) {
-        url += `/${args.beat.value}`
-      } else if (Option.isSome(args.hash)) {
-        url += `/${args.hash.value}`
+      const request: PipelineTestRequest = {
+        network: args.network,
+        ...(Option.isSome(args.beat) ? { beat: args.beat.value } : {}),
+        ...(Option.isSome(args.hash) ? { hash: args.hash.value } : {})
       }
 
-      const request = HttpClientRequest.post(url).pipe(
-        HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key))
-      )
-
-      const response = yield* client.execute(request).pipe(
-        Effect.flatMap((response) => response.json),
-        Effect.catchAll((error) => {
-          return Console.error(`Failed to test pipeline: ${error}`).pipe(
-            Effect.flatMap(() => Effect.fail(error))
-          )
-        })
-      )
+      const response = yield* testPipeline(client, key, args.name, request)
 
       yield* Console.log(`Pipeline '${args.name}' test result:`)
       yield* Console.log(JSON.stringify(response, null, 2))
@@ -283,20 +189,9 @@ export const pipelinesDeleteCommand = Command.make(
   (args) =>
     Effect.gen(function*() {
       const client = yield* HttpClient.HttpClient
-      const key = yield* getApiKey(args.apiKey)
+      const key = yield* resolveApiKey(args.apiKey)
 
-      const request = HttpClientRequest.del(`https://app.indexing.co/dw/pipelines/${args.name}`).pipe(
-        HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key))
-      )
-
-      const response = yield* client.execute(request).pipe(
-        Effect.flatMap((response) => response.json),
-        Effect.catchAll((error) => {
-          return Console.error(`Failed to delete pipeline: ${error}`).pipe(
-            Effect.flatMap(() => Effect.fail(error))
-          )
-        })
-      )
+      const response = yield* deletePipeline(client, key, args.name)
 
       yield* Console.log(`Pipeline '${args.name}' deleted successfully:`)
       yield* Console.log(JSON.stringify(response, null, 2))

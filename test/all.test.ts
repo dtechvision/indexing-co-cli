@@ -1,0 +1,5 @@
+import "./services/pipelines.test"
+import "./services/filters.test"
+import "./services/transformations.test"
+import "./tui/state.test"
+import "./tui/Header.test"

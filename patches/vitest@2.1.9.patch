@@ -1,0 +1,21 @@
+diff --git a/dist/chunks/utils.Cn0zI1t3.js b/dist/chunks/utils.Cn0zI1t3.js
+index 1111111111111111111111111111111111111111..2222222222222222222222222222222222222222 100644
+--- a/dist/chunks/utils.Cn0zI1t3.js
++++ b/dist/chunks/utils.Cn0zI1t3.js
+@@ -13,7 +13,13 @@ function createThreadsRpcOptions({
+   return {
+     post: (v) => {
+       port.postMessage(v);
+     },
+     on: (fn) => {
+-      port.addListener("message", fn);
++      if (typeof port.addListener === "function") {
++        port.addListener("message", fn);
++      } else if (typeof port.on === "function") {
++        port.on("message", fn);
++      } else if (typeof port.addEventListener === "function") {
++        port.addEventListener("message", fn);
++      }
+     }
+   };
+ }
