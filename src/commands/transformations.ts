@@ -110,28 +110,16 @@ export const transformationsShowCommand = Command.make(
         return yield* Effect.fail(new Error(`Transformation fetch failed with status ${httpResponse.status}`))
       }
 
-      const response = yield* httpResponse.json.pipe(
+      const rawBody = yield* httpResponse.text.pipe(
         Effect.catchAll((error) => {
-          return Console.error(`Failed to parse transformation response: ${error}`).pipe(
+          return Console.error(`Failed to read transformation response: ${error}`).pipe(
             Effect.flatMap(() => Effect.fail(error))
           )
         })
       )
 
-      yield* Console.log(`Transformation '${args.name}' fetched successfully.`)
-
-      if (
-        typeof response === "object" &&
-        response !== null &&
-        "code" in response &&
-        typeof (response as { code: unknown }).code === "string"
-      ) {
-        yield* Console.log("Transformation code:")
-        yield* Console.log((response as { code: string }).code)
-      } else {
-        yield* Console.log("Transformation details:")
-        yield* Console.log(JSON.stringify(response, null, 2))
-      }
+      const output = rawBody.trim() === "" ? rawBody : rawBody.trimEnd()
+      yield* Console.log(output)
     })
 )
 

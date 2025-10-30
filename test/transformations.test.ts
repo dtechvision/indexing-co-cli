@@ -19,9 +19,9 @@ const run = Command.run({
 const okResponse = (request: HttpClientRequest.HttpClientRequest) =>
   HttpClientResponse.fromWeb(
     request,
-    new Response(JSON.stringify({ name: "demo", code: "export const value = 1" }), {
+    new Response("export const value = 1", {
       status: 200,
-      headers: { "Content-Type": "application/json" }
+      headers: { "Content-Type": "text/plain" }
     })
   )
 
