@@ -107,22 +107,24 @@ export const pipelinesCreateCommand = Command.make(
       const key = yield* getApiKey(args.apiKey)
 
       // Build headers object for webhook
-      const headers: Record<string, string> = {}
-      if (Option.isSome(args.authHeader) && Option.isSome(args.authValue)) {
-        headers[args.authHeader.value] = args.authValue.value
-      }
+      const headers = Option.isSome(args.authHeader) && Option.isSome(args.authValue)
+        ? { [args.authHeader.value]: args.authValue.value }
+        : undefined
+
+      const filterKeys = Array.from(args.filterKeys)
+      const networks = Array.from(args.networks)
 
       const requestBody = {
         name: args.name,
         transformation: args.transformation,
         filter: args.filter,
-        filterKeys: args.filterKeys,
-        networks: args.networks,
+        filterKeys,
+        networks,
         delivery: {
           adapter: "HTTP",
           connection: {
             host: args.webhookUrl,
-            headers
+            ...(headers ? { headers } : {})
           }
         }
       }
@@ -131,20 +133,45 @@ export const pipelinesCreateCommand = Command.make(
       yield* Console.log("Request body:")
       yield* Console.log(JSON.stringify(requestBody, null, 2))
 
-      const request = HttpClientRequest.post("https://app.indexing.co/dw/pipelines").pipe(
-        HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key)),
-        HttpClientRequest.setHeader("Content-Type", "application/json"),
-        HttpClientRequest.bodyText(JSON.stringify(requestBody))
+      const requestBase = HttpClientRequest.post("https://app.indexing.co/dw/pipelines").pipe(
+        HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key))
       )
+      const request = yield* HttpClientRequest.bodyJson(requestBody)(requestBase)
 
-      const response = yield* client.execute(request).pipe(
-        Effect.flatMap((response) => response.json),
+      const httpResponse = yield* client.execute(request).pipe(
         Effect.catchAll((error) => {
           return Console.error(`Failed to create pipeline: ${error}`).pipe(
             Effect.flatMap(() => Effect.fail(error))
           )
         })
       )
+
+      if (httpResponse.status < 200 || httpResponse.status >= 300) {
+        const errorBody = yield* Effect.catchAll(httpResponse.text, () => Effect.succeed(""))
+        const messageSuffix = errorBody !== "" ? `: ${errorBody}` : ""
+        yield* Console.error(`Failed to create pipeline: received status ${httpResponse.status}${messageSuffix}`)
+        return yield* Effect.fail(new Error(`Pipeline creation failed with status ${httpResponse.status}`))
+      }
+
+      const response = yield* httpResponse.json.pipe(
+        Effect.catchAll((error) => {
+          return Console.error(`Failed to parse pipeline creation response: ${error}`).pipe(
+            Effect.flatMap(() => Effect.fail(error))
+          )
+        })
+      )
+
+      if (
+        typeof response === "object" &&
+        response !== null &&
+        "error" in response &&
+        response.error !== undefined &&
+        response.error !== null
+      ) {
+        const errorMessage = String((response as { error: unknown }).error)
+        yield* Console.error(`Failed to create pipeline: ${errorMessage}`)
+        return yield* Effect.fail(new Error(`Pipeline creation failed: ${errorMessage}`))
+      }
 
       yield* Console.log(`Pipeline '${args.name}' created successfully:`)
       yield* Console.log(JSON.stringify(response, null, 2))
