@@ -71,6 +71,9 @@ export const transformationsListCommand = Command.make(
 
       yield* Console.log("Transformations fetched successfully:")
       yield* Console.log(JSON.stringify(response, null, 2))
+      yield* Console.log(
+        "Tip: fetch a transformation's source with GET https://app.indexing.co/dw/transformations/<name> and include your API key (e.g. via curl -H \"X-API-KEY: $API_KEY_INDEXING_CO\")."
+      )
     })
 )
 
