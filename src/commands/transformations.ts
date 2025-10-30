@@ -72,8 +72,66 @@ export const transformationsListCommand = Command.make(
       yield* Console.log("Transformations fetched successfully:")
       yield* Console.log(JSON.stringify(response, null, 2))
       yield* Console.log(
-        "Tip: fetch a transformation's source with GET https://app.indexing.co/dw/transformations/<name> and include your API key (e.g. via curl -H \"X-API-KEY: $API_KEY_INDEXING_CO\")."
+        "Tip: inspect a transformation's source with `indexingco transformations show <name>`."
       )
+    })
+)
+
+// Command to fetch a transformation's source
+export const transformationsShowCommand = Command.make(
+  "show",
+  {
+    apiKey: apiKeyOption,
+    name: Args.text({ name: "name" }).pipe(Args.withDescription("Name of the transformation to fetch"))
+  },
+  (args) =>
+    Effect.gen(function*() {
+      const client = yield* HttpClient.HttpClient
+      const key = yield* getApiKey(args.apiKey)
+
+      const request = HttpClientRequest.get(`https://app.indexing.co/dw/transformations/${args.name}`).pipe(
+        HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key))
+      )
+
+      const httpResponse = yield* client.execute(request).pipe(
+        Effect.catchAll((error) => {
+          return Console.error(`Failed to fetch transformation '${args.name}': ${error}`).pipe(
+            Effect.flatMap(() => Effect.fail(error))
+          )
+        })
+      )
+
+      if (httpResponse.status < 200 || httpResponse.status >= 300) {
+        const errorBody = yield* Effect.catchAll(httpResponse.text, () => Effect.succeed(""))
+        const suffix = errorBody !== "" ? `: ${errorBody}` : ""
+        yield* Console.error(
+          `Failed to fetch transformation '${args.name}': received status ${httpResponse.status}${suffix}`
+        )
+        return yield* Effect.fail(new Error(`Transformation fetch failed with status ${httpResponse.status}`))
+      }
+
+      const response = yield* httpResponse.json.pipe(
+        Effect.catchAll((error) => {
+          return Console.error(`Failed to parse transformation response: ${error}`).pipe(
+            Effect.flatMap(() => Effect.fail(error))
+          )
+        })
+      )
+
+      yield* Console.log(`Transformation '${args.name}' fetched successfully.`)
+
+      if (
+        typeof response === "object" &&
+        response !== null &&
+        "code" in response &&
+        typeof (response as { code: unknown }).code === "string"
+      ) {
+        yield* Console.log("Transformation code:")
+        yield* Console.log((response as { code: string }).code)
+      } else {
+        yield* Console.log("Transformation details:")
+        yield* Console.log(JSON.stringify(response, null, 2))
+      }
     })
 )
 
@@ -199,5 +257,10 @@ export const transformationsCreateCommand = Command.make(
 
 // Main transformations command with subcommands
 export const transformationsCommand = Command.make("transformations").pipe(
-  Command.withSubcommands([transformationsListCommand, transformationsTestCommand, transformationsCreateCommand])
+  Command.withSubcommands([
+    transformationsListCommand,
+    transformationsShowCommand,
+    transformationsTestCommand,
+    transformationsCreateCommand
+  ])
 )
