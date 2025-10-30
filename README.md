@@ -15,7 +15,7 @@ npm install -g @dtechvision/indexingco-cli
 Set the API key as an environment variable:
 
 ```bash
-export INDEXING_API_KEY="your-api-key-here"
+export API_KEY_INDEXING_CO="your-api-key-here"
 indexingco pipelines
 ```
 
