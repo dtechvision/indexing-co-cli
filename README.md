@@ -63,7 +63,7 @@ Set the API key as an environment variable:
 
 ```bash
 export API_KEY_INDEXING_CO="your-api-key-here"
-indexingco pipelines
+indexingco-cli pipelines
 ```
 
 ### CLI Argument
@@ -71,7 +71,7 @@ indexingco pipelines
 Pass the API key as a command line argument:
 
 ```bash
-indexingco pipelines --api-key "your-api-key-here"
+indexingco-cli pipelines --api-key "your-api-key-here"
 ```
 
 ### Available Commands
@@ -94,6 +94,6 @@ indexingco pipelines --api-key "your-api-key-here"
 ### Help
 
 ```bash
-indexingco --help
-indexingco pipelines --help
+indexingco-cli --help
+indexingco-cli pipelines --help
 ```
