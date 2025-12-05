@@ -15,10 +15,10 @@ try {
   process.exit(1)
 }
 
-// Check if we're on main branch
+// Check if we're on master branch
 const currentBranch = execSync("git branch --show-current", { encoding: "utf8" }).trim()
-if (currentBranch !== "main") {
-  console.error("❌ Error: You must be on the main branch to release.")
+if (currentBranch !== "master") {
+  console.error("❌ Error: You must be on the master branch to release.")
   process.exit(1)
 }
 

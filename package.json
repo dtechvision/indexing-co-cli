@@ -24,8 +24,15 @@
     "coverage": "vitest run --coverage",
     "copy-package-json": "bun scripts/copy-package-json.ts",
     "changeset-version": "changeset version && bun scripts/version.mjs",
-    "changeset-publish": "bun run build && TEST_DIST= bun vitest && changeset publish",
+    "changeset-publish": "bun run build && TEST_DIST= bun run test && changeset publish",
     "release": "bun scripts/release.mjs"
+  },
+  "bun": {
+    "patches": {
+      "@changesets/assemble-release-plan@6.0.8": "patches/@changesets__assemble-release-plan@6.0.8.patch",
+      "@changesets/get-github-info@0.6.0": "patches/@changesets__get-github-info@0.6.0.patch",
+      "@effect/vitest@0.25.1": "patches/@effect__vitest@0.25.1.patch"
+    }
   },
   "devDependencies": {
     "@changesets/changelog-github": "^0.5.0",

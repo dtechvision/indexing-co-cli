@@ -3,7 +3,7 @@
   "changelog": [
     "@changesets/changelog-github",
     {
-      "repo": "https://github.com/dtechvision/indexing-co-cli"
+      "repo": "dtechvision/indexing-co-cli"
     }
   ],
   "commit": false,

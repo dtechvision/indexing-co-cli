@@ -1,0 +1,59 @@
+diff --git a/dist/changesets-assemble-release-plan.cjs.js b/dist/changesets-assemble-release-plan.cjs.js
+index 8d6105e20da56cb5dfc863c50266b6d0409739f5..fdb629b0214077ab1020c10d786a5ab321dfc62d 100644
+--- a/dist/changesets-assemble-release-plan.cjs.js
++++ b/dist/changesets-assemble-release-plan.cjs.js
+@@
+-          } else if (shouldBumpMajor({
+-            dependent,
+-            depType,
+-            versionRange,
+-            releases,
+-            nextRelease,
+-            preInfo,
+-            onlyUpdatePeerDependentsWhenOutOfRange: config.___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH.onlyUpdatePeerDependentsWhenOutOfRange
+-          })) {
+-            type = "major";
++          } else if (shouldBumpMajor({
++            dependent,
++            depType,
++            versionRange,
++            releases,
++            nextRelease,
++            preInfo,
++            onlyUpdatePeerDependentsWhenOutOfRange: config.___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH.onlyUpdatePeerDependentsWhenOutOfRange
++          })) {
++            type = "minor";
+           } else if ((!releases.has(dependent) || releases.get(dependent).type === "none") && (config.___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH.updateInternalDependents === "always" || !semverSatisfies__default["default"](incrementVersion(nextRelease, preInfo), versionRange))) {
+             switch (depType) {
+               case "dependencies":
+               case "optionalDependencies":
+               case "peerDependencies":
+diff --git a/dist/changesets-assemble-release-plan.esm.js b/dist/changesets-assemble-release-plan.esm.js
+index 5e94f3746e8ab50f37a43a05f8b8f597dc92cfb2..73babf44767bf1b07c5586f7cc1b9bd4fdf18a78 100644
+--- a/dist/changesets-assemble-release-plan.esm.js
++++ b/dist/changesets-assemble-release-plan.esm.js
+@@
+-          } else if (shouldBumpMajor({
+-            dependent,
+-            depType,
+-            versionRange,
+-            releases,
+-            nextRelease,
+-            preInfo,
+-            onlyUpdatePeerDependentsWhenOutOfRange: config.___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH.onlyUpdatePeerDependentsWhenOutOfRange
+-          })) {
+-            type = "major";
++          } else if (shouldBumpMajor({
++            dependent,
++            depType,
++            versionRange,
++            releases,
++            nextRelease,
++            preInfo,
++            onlyUpdatePeerDependentsWhenOutOfRange: config.___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH.onlyUpdatePeerDependentsWhenOutOfRange
++          })) {
++            type = "minor";
+           } else if ((!releases.has(dependent) || releases.get(dependent).type === "none") && (config.___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH.updateInternalDependents === "always" || !semverSatisfies(incrementVersion(nextRelease, preInfo), versionRange))) {
+             switch (depType) {
+               case "dependencies":
+               case "optionalDependencies":
