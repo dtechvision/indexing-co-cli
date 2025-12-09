@@ -1,13 +1,13 @@
-import { describe, expect, it } from "@effect/vitest"
 import * as Command from "@effect/cli/Command"
-import * as HttpClient from "@effect/platform/HttpClient"
-import * as HttpClientRequest from "@effect/platform/HttpClientRequest"
-import * as HttpClientResponse from "@effect/platform/HttpClientResponse"
-import * as Layer from "effect/Layer"
-import * as Effect from "effect/Effect"
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem"
 import * as NodePath from "@effect/platform-node/NodePath"
 import * as NodeTerminal from "@effect/platform-node/NodeTerminal"
+import * as HttpClient from "@effect/platform/HttpClient"
+import type * as HttpClientRequest from "@effect/platform/HttpClientRequest"
+import * as HttpClientResponse from "@effect/platform/HttpClientResponse"
+import { describe, expect, it } from "@effect/vitest"
+import * as Effect from "effect/Effect"
+import * as Layer from "effect/Layer"
 import { transformationsShowCommand } from "../src/commands/transformations.js"
 
 const run = Command.run({
@@ -25,7 +25,7 @@ const okResponse = (request: HttpClientRequest.HttpClientRequest) =>
     })
   )
 
-const makeMockHttpClient = (onRequest: (request: HttpClientRequest.HttpClientRequest) => void) =>
+const makeMockHttpClient = (onRequest: (request: HttpClientRequest.HttpClientRequest) => void): HttpClient.HttpClient =>
   HttpClient.makeWith(
     (effect) =>
       Effect.flatMap(effect, (request) => {
@@ -33,7 +33,7 @@ const makeMockHttpClient = (onRequest: (request: HttpClientRequest.HttpClientReq
         return Effect.succeed(okResponse(request))
       }),
     (request) => Effect.succeed(request)
-  )
+  ) as HttpClient.HttpClient
 
 const cliLayer = Layer.mergeAll(
   NodeFileSystem.layer,
@@ -59,6 +59,5 @@ describe("transformations commands", () => {
       expect(request.method).toBe("GET")
       expect(request.url).toBe("https://app.indexing.co/dw/transformations/demo")
       expect(request.headers["x-api-key"]).toBeDefined()
-    })
-  )
+    }))
 })

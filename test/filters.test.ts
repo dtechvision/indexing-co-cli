@@ -1,13 +1,13 @@
-import { describe, expect, it } from "@effect/vitest"
 import * as Command from "@effect/cli/Command"
-import * as HttpClient from "@effect/platform/HttpClient"
-import * as HttpClientRequest from "@effect/platform/HttpClientRequest"
-import * as HttpClientResponse from "@effect/platform/HttpClientResponse"
-import * as Layer from "effect/Layer"
-import * as Effect from "effect/Effect"
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem"
 import * as NodePath from "@effect/platform-node/NodePath"
 import * as NodeTerminal from "@effect/platform-node/NodeTerminal"
+import * as HttpClient from "@effect/platform/HttpClient"
+import type * as HttpClientRequest from "@effect/platform/HttpClientRequest"
+import * as HttpClientResponse from "@effect/platform/HttpClientResponse"
+import { describe, expect, it } from "@effect/vitest"
+import * as Effect from "effect/Effect"
+import * as Layer from "effect/Layer"
 import { filtersCreateCommand, filtersRemoveCommand } from "../src/commands/filters.js"
 
 const run = Command.run({
@@ -25,7 +25,7 @@ const okResponse = (request: HttpClientRequest.HttpClientRequest) =>
     })
   )
 
-const makeMockHttpClient = (onRequest: (request: HttpClientRequest.HttpClientRequest) => void) =>
+const makeMockHttpClient = (onRequest: (request: HttpClientRequest.HttpClientRequest) => void): HttpClient.HttpClient =>
   HttpClient.makeWith(
     (effect) =>
       Effect.flatMap(effect, (request) => {
@@ -33,7 +33,7 @@ const makeMockHttpClient = (onRequest: (request: HttpClientRequest.HttpClientReq
         return Effect.succeed(okResponse(request))
       }),
     (request) => Effect.succeed(request)
-  )
+  ) as HttpClient.HttpClient
 
 const cliLayer = Layer.mergeAll(
   NodeFileSystem.layer,
@@ -43,7 +43,7 @@ const cliLayer = Layer.mergeAll(
 
 describe("filters commands", () => {
   it.effect("filters create serializes repeated values into JSON array", () =>
-    Effect.gen(function* () {
+    Effect.gen(function*() {
       const captured: Array<HttpClientRequest.HttpClientRequest> = []
       const client = makeMockHttpClient((request) => {
         captured.push(request)
@@ -72,11 +72,10 @@ describe("filters commands", () => {
       expect(JSON.parse(body.body)).toStrictEqual({
         values: ["0xaaa", "0xbbb"]
       })
-    })
-  )
+    }))
 
   it.effect("filters remove posts JSON array payload for repeated values", () =>
-    Effect.gen(function* () {
+    Effect.gen(function*() {
       const captured: Array<HttpClientRequest.HttpClientRequest> = []
       const client = makeMockHttpClient((request) => {
         captured.push(request)
@@ -105,11 +104,10 @@ describe("filters commands", () => {
       expect(JSON.parse(body.body)).toStrictEqual({
         values: ["0x111", "0x222"]
       })
-    })
-  )
+    }))
 
   it.effect("filters create handles comma-separated values in single flag", () =>
-    Effect.gen(function* () {
+    Effect.gen(function*() {
       const captured: Array<HttpClientRequest.HttpClientRequest> = []
       const client = makeMockHttpClient((request) => {
         captured.push(request)
@@ -140,11 +138,10 @@ describe("filters commands", () => {
           "0xA549779995A5d6e3fFf907A92D735d70F3aCf96f"
         ]
       })
-    })
-  )
+    }))
 
   it.effect("filters create handles mixed comma-separated and separate flags", () =>
-    Effect.gen(function* () {
+    Effect.gen(function*() {
       const captured: Array<HttpClientRequest.HttpClientRequest> = []
       const client = makeMockHttpClient((request) => {
         captured.push(request)
@@ -172,11 +169,10 @@ describe("filters commands", () => {
       expect(JSON.parse(body.body)).toStrictEqual({
         values: ["0xaaa", "0xbbb", "0xccc", "0xddd", "0xeee"]
       })
-    })
-  )
+    }))
 
   it.effect("filters remove handles comma-separated values", () =>
-    Effect.gen(function* () {
+    Effect.gen(function*() {
       const captured: Array<HttpClientRequest.HttpClientRequest> = []
       const client = makeMockHttpClient((request) => {
         captured.push(request)
@@ -200,11 +196,10 @@ describe("filters commands", () => {
       expect(JSON.parse(body.body)).toStrictEqual({
         values: ["0x111", "0x222", "0x333"]
       })
-    })
-  )
+    }))
 
   it.effect("filters create trims whitespace from comma-separated values", () =>
-    Effect.gen(function* () {
+    Effect.gen(function*() {
       const captured: Array<HttpClientRequest.HttpClientRequest> = []
       const client = makeMockHttpClient((request) => {
         captured.push(request)
@@ -228,11 +223,10 @@ describe("filters commands", () => {
       expect(JSON.parse(body.body)).toStrictEqual({
         values: ["0xaaa", "0xbbb", "0xccc"]
       })
-    })
-  )
+    }))
 
   it.effect("filters create fails when no values provided", () =>
-    Effect.gen(function* () {
+    Effect.gen(function*() {
       const captured: Array<HttpClientRequest.HttpClientRequest> = []
       const client = makeMockHttpClient((request) => {
         captured.push(request)
@@ -251,11 +245,10 @@ describe("filters commands", () => {
       expect(result._tag).toBe("Left")
       // Should not make any HTTP requests
       expect(captured.length).toBe(0)
-    })
-  )
+    }))
 
   it.effect("filters remove fails when no values provided", () =>
-    Effect.gen(function* () {
+    Effect.gen(function*() {
       const captured: Array<HttpClientRequest.HttpClientRequest> = []
       const client = makeMockHttpClient((request) => {
         captured.push(request)
@@ -274,11 +267,10 @@ describe("filters commands", () => {
       expect(result._tag).toBe("Left")
       // Should not make any HTTP requests
       expect(captured.length).toBe(0)
-    })
-  )
+    }))
 
   it.effect("filters create handles empty strings after comma splitting", () =>
-    Effect.gen(function* () {
+    Effect.gen(function*() {
       const captured: Array<HttpClientRequest.HttpClientRequest> = []
       const client = makeMockHttpClient((request) => {
         captured.push(request)
@@ -302,11 +294,10 @@ describe("filters commands", () => {
       expect(JSON.parse(body.body)).toStrictEqual({
         values: ["0xaaa", "0xbbb", "0xccc"]
       })
-    })
-  )
+    }))
 
   it.effect("filters create fails when only empty comma-separated values provided", () =>
-    Effect.gen(function* () {
+    Effect.gen(function*() {
       const captured: Array<HttpClientRequest.HttpClientRequest> = []
       const client = makeMockHttpClient((request) => {
         captured.push(request)
@@ -327,6 +318,5 @@ describe("filters commands", () => {
       expect(result._tag).toBe("Left")
       // Should not make any HTTP requests
       expect(captured.length).toBe(0)
-    })
-  )
+    }))
 })

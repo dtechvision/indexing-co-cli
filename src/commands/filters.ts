@@ -57,12 +57,12 @@ const parseFilterValues = (rawValues: Iterable<string>) =>
     }
 
     // Check if any value contains commas (potential bug)
-    const hasCommas = values.some(v => v.includes(','))
+    const hasCommas = values.some((v) => v.includes(","))
 
     if (hasCommas) {
       // Split comma-separated values and flatten
-      const expandedValues = values.flatMap(v =>
-        v.split(',').map(addr => addr.trim()).filter(addr => addr.length > 0)
+      const expandedValues = values.flatMap((v) =>
+        v.split(",").map((addr) => addr.trim()).filter((addr) => addr.length > 0)
       )
 
       // Validate that after filtering empty strings, we still have values
