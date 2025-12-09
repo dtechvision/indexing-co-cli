@@ -44,6 +44,46 @@ const getApiKey = (cliApiKey: Option.Option<Redacted.Redacted>) =>
     return key
   })
 
+// Helper function to parse and validate filter values
+// Handles both comma-separated strings and individual values
+// Prevents the bug where "0xaaa,0xbbb,0xccc" is treated as a single value
+const parseFilterValues = (rawValues: Iterable<string>) =>
+  Effect.gen(function*() {
+    const values = Array.from(rawValues)
+
+    if (values.length === 0) {
+      yield* Console.error("At least one --values flag is required")
+      return yield* Effect.fail(new Error("No values provided"))
+    }
+
+    // Check if any value contains commas (potential bug)
+    const hasCommas = values.some(v => v.includes(','))
+
+    if (hasCommas) {
+      // Split comma-separated values and flatten
+      const expandedValues = values.flatMap(v =>
+        v.split(',').map(addr => addr.trim()).filter(addr => addr.length > 0)
+      )
+
+      // Validate that after filtering empty strings, we still have values
+      if (expandedValues.length === 0) {
+        yield* Console.error("No valid values provided after parsing comma-separated input")
+        return yield* Effect.fail(new Error("No valid values provided"))
+      }
+
+      yield* Console.warn(
+        "Warning: Detected comma-separated values. Automatically splitting into individual addresses."
+      )
+      yield* Console.warn(
+        `Parsed ${values.length} input(s) into ${expandedValues.length} address(es)`
+      )
+
+      return expandedValues
+    }
+
+    return values
+  })
+
 // Note: List all filters endpoint doesn't exist
 // Use GET /filters/{name} to list values for a specific filter
 
@@ -78,7 +118,7 @@ export const filtersRemoveCommand = Command.make(
     name: Args.text({ name: "name" }).pipe(Args.withDescription("Name of the filter")),
     values: Options.text("values").pipe(
       Options.repeated,
-      Options.withDescription("Contract addresses to remove from the filter")
+      Options.withDescription("Contract addresses to remove from the filter (supports comma-separated values)")
     )
   },
   (args) =>
@@ -86,11 +126,8 @@ export const filtersRemoveCommand = Command.make(
       const client = yield* HttpClient.HttpClient
       const key = yield* getApiKey(args.apiKey)
 
-      const values = Array.from(args.values) // Options.repeated returns an Effect Chunk; convert to array
-      if (values.length === 0) {
-        yield* Console.error("At least one --values flag is required")
-        return yield* Effect.fail(new Error("No values provided"))
-      }
+      // Parse and validate values (handles comma-separated inputs)
+      const values = yield* parseFilterValues(args.values)
 
       const requestBody = {
         values
@@ -123,7 +160,7 @@ export const filtersCreateCommand = Command.make(
     name: Args.text({ name: "name" }).pipe(Args.withDescription("Name of the filter")),
     values: Options.text("values").pipe(
       Options.repeated,
-      Options.withDescription("Contract addresses to include in the filter")
+      Options.withDescription("Contract addresses to include in the filter (supports comma-separated values)")
     )
   },
   (args) =>
@@ -131,11 +168,8 @@ export const filtersCreateCommand = Command.make(
       const client = yield* HttpClient.HttpClient
       const key = yield* getApiKey(args.apiKey)
 
-      const values = Array.from(args.values) // Options.repeated returns an Effect Chunk; convert to array
-      if (values.length === 0) {
-        yield* Console.error("At least one --values flag is required")
-        return yield* Effect.fail(new Error("No values provided"))
-      }
+      // Parse and validate values (handles comma-separated inputs)
+      const values = yield* parseFilterValues(args.values)
 
       const requestBody = {
         values
