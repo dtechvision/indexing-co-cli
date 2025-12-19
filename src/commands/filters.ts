@@ -136,68 +136,75 @@ export const filtersListCommand = Command.make(
 )
 
 // Command to remove values from a filter
-export const filtersRemoveCommand = Command.make(
-  "remove",
-  {
-    apiKey: apiKeyOption,
-    name: Args.text({ name: "name" }).pipe(Args.withDescription("Name of the filter")),
-    values: Options.text("values").pipe(
-      Options.repeated,
-      Options.withDescription("Contract addresses to remove from the filter (supports comma-separated values)")
+const filtersRemoveHandler = (args: {
+  apiKey: Option.Option<Redacted.Redacted>
+  name: string
+  values: Iterable<string>
+}) =>
+  Effect.gen(function*() {
+    const client = yield* HttpClient.HttpClient
+    const key = yield* getApiKey(args.apiKey)
+
+    // Parse and validate values (handles comma-separated inputs)
+    const values = yield* parseFilterValues(args.values)
+
+    const requestBody = {
+      values
+    }
+
+    const requestBase = HttpClientRequest.del(`https://app.indexing.co/dw/filters/${args.name}`).pipe(
+      HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key))
     )
-  },
-  (args) =>
-    Effect.gen(function*() {
-      const client = yield* HttpClient.HttpClient
-      const key = yield* getApiKey(args.apiKey)
+    const request = yield* HttpClientRequest.bodyJson(requestBody)(requestBase)
 
-      // Parse and validate values (handles comma-separated inputs)
-      const values = yield* parseFilterValues(args.values)
-
-      const requestBody = {
-        values
-      }
-
-      const requestBase = HttpClientRequest.del(`https://app.indexing.co/dw/filters/${args.name}`).pipe(
-        HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key))
-      )
-      const request = yield* HttpClientRequest.bodyJson(requestBody)(requestBase)
-
-      const httpResponse = yield* client.execute(request).pipe(
-        Effect.catchAll((error) => {
-          return Console.error(`Failed to remove values from filter: ${error}`).pipe(
-            Effect.flatMap(() => Effect.fail(error))
-          )
-        })
-      )
-
-      if (httpResponse.status < 200 || httpResponse.status >= 300) {
-        const errorBody = yield* Effect.catchAll(httpResponse.text, () => Effect.succeed(""))
-        const messageSuffix = errorBody !== "" ? `: ${errorBody}` : ""
-        yield* Console.error(
-          `Failed to remove values from filter '${args.name}': received status ${httpResponse.status}${messageSuffix}`
+    const httpResponse = yield* client.execute(request).pipe(
+      Effect.catchAll((error) => {
+        return Console.error(`Failed to remove values from filter: ${error}`).pipe(
+          Effect.flatMap(() => Effect.fail(error))
         )
-        return yield* Effect.fail(new Error(`Filter removal failed with status ${httpResponse.status}`))
-      }
+      })
+    )
 
-      const response = yield* httpResponse.json.pipe(
-        Effect.catchAll((error) => {
-          return Console.error(`Failed to parse filter removal response: ${error}`).pipe(
-            Effect.flatMap(() => Effect.fail(error))
-          )
-        })
+    if (httpResponse.status < 200 || httpResponse.status >= 300) {
+      const errorBody = yield* Effect.catchAll(httpResponse.text, () => Effect.succeed(""))
+      const messageSuffix = errorBody !== "" ? `: ${errorBody}` : ""
+      yield* Console.error(
+        `Failed to remove values from filter '${args.name}': received status ${httpResponse.status}${messageSuffix}`
       )
+      return yield* Effect.fail(new Error(`Filter removal failed with status ${httpResponse.status}`))
+    }
 
-      if (typeof response === "object" && response !== null && "error" in response && response.error) {
-        const errorMessage = String((response as { error: unknown }).error)
-        yield* Console.error(`Failed to remove values from filter '${args.name}': ${errorMessage}`)
-        return yield* Effect.fail(new Error(`Filter removal failed: ${errorMessage}`))
-      }
+    const response = yield* httpResponse.json.pipe(
+      Effect.catchAll((error) => {
+        return Console.error(`Failed to parse filter removal response: ${error}`).pipe(
+          Effect.flatMap(() => Effect.fail(error))
+        )
+      })
+    )
 
-      yield* Console.log(`Values removed from filter '${args.name}' successfully:`)
-      yield* Console.log(JSON.stringify(response, null, 2))
-    })
-)
+    if (typeof response === "object" && response !== null && "error" in response && response.error) {
+      const errorMessage = String((response as { error: unknown }).error)
+      yield* Console.error(`Failed to remove values from filter '${args.name}': ${errorMessage}`)
+      return yield* Effect.fail(new Error(`Filter removal failed: ${errorMessage}`))
+    }
+
+    yield* Console.log(`Values removed from filter '${args.name}' successfully:`)
+    yield* Console.log(JSON.stringify(response, null, 2))
+  })
+
+const filterRemoveArgs = {
+  apiKey: apiKeyOption,
+  name: Args.text({ name: "name" }).pipe(Args.withDescription("Name of the filter")),
+  values: Options.text("values").pipe(
+    Options.repeated,
+    Options.withDescription("Contract addresses to remove from the filter (supports comma-separated values)")
+  )
+}
+
+export const filtersRemoveCommand = Command.make("remove", filterRemoveArgs, filtersRemoveHandler)
+// Aliases to be forgiving: delete/rm behave like remove
+export const filtersDeleteCommand = Command.make("delete", filterRemoveArgs, filtersRemoveHandler)
+export const filtersRmCommand = Command.make("rm", filterRemoveArgs, filtersRemoveHandler)
 
 // Command to create a filter
 export const filtersCreateCommand = Command.make(
@@ -263,7 +270,13 @@ export const filtersCreateCommand = Command.make(
     })
 )
 
-// Main filters command with subcommands
+// Main filters command with subcommands and aliases (e.g., "delete" for "remove")
 export const filtersCommand = Command.make("filters").pipe(
-  Command.withSubcommands([filtersCreateCommand, filtersRemoveCommand, filtersListCommand])
+  Command.withSubcommands([
+    filtersCreateCommand,
+    filtersRemoveCommand,
+    filtersDeleteCommand,
+    filtersRmCommand,
+    filtersListCommand
+  ])
 )

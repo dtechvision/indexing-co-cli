@@ -273,34 +273,40 @@ export const pipelinesTestCommand = Command.make(
 )
 
 // Command to delete a pipeline by name
-export const pipelinesDeleteCommand = Command.make(
-  "delete",
-  {
-    apiKey: apiKeyOption,
-    name: Args.text({ name: "name" }).pipe(Args.withDescription("Name of the pipeline to delete"))
-  },
-  (args) =>
-    Effect.gen(function*() {
-      const client = yield* HttpClient.HttpClient
-      const key = yield* getApiKey(args.apiKey)
+const pipelinesDeleteArgs = {
+  apiKey: apiKeyOption,
+  name: Args.text({ name: "name" }).pipe(Args.withDescription("Name of the pipeline to delete"))
+}
 
-      const request = HttpClientRequest.del(`https://app.indexing.co/dw/pipelines/${args.name}`).pipe(
-        HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key))
-      )
+const pipelinesDeleteHandler = (args: {
+  apiKey: Option.Option<Redacted.Redacted>
+  name: string
+}) =>
+  Effect.gen(function*() {
+    const client = yield* HttpClient.HttpClient
+    const key = yield* getApiKey(args.apiKey)
 
-      const response = yield* client.execute(request).pipe(
-        Effect.flatMap((response) => response.json),
-        Effect.catchAll((error) => {
-          return Console.error(`Failed to delete pipeline: ${error}`).pipe(
-            Effect.flatMap(() => Effect.fail(error))
-          )
-        })
-      )
+    const request = HttpClientRequest.del(`https://app.indexing.co/dw/pipelines/${args.name}`).pipe(
+      HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key))
+    )
 
-      yield* Console.log(`Pipeline '${args.name}' deleted successfully:`)
-      yield* Console.log(JSON.stringify(response, null, 2))
-    })
-)
+    const response = yield* client.execute(request).pipe(
+      Effect.flatMap((response) => response.json),
+      Effect.catchAll((error) => {
+        return Console.error(`Failed to delete pipeline: ${error}`).pipe(
+          Effect.flatMap(() => Effect.fail(error))
+        )
+      })
+    )
+
+    yield* Console.log(`Pipeline '${args.name}' deleted successfully:`)
+    yield* Console.log(JSON.stringify(response, null, 2))
+  })
+
+export const pipelinesDeleteCommand = Command.make("delete", pipelinesDeleteArgs, pipelinesDeleteHandler)
+// Aliases to be forgiving: rm/remove behave like delete
+export const pipelinesRmCommand = Command.make("rm", pipelinesDeleteArgs, pipelinesDeleteHandler)
+export const pipelinesRemoveCommand = Command.make("remove", pipelinesDeleteArgs, pipelinesDeleteHandler)
 
 // Main pipelines command with subcommands
 export const pipelinesCommand = Command.make("pipelines").pipe(
@@ -309,6 +315,8 @@ export const pipelinesCommand = Command.make("pipelines").pipe(
     pipelinesCreateCommand,
     pipelinesBackfillCommand,
     pipelinesTestCommand,
-    pipelinesDeleteCommand
-  ])
+    pipelinesDeleteCommand,
+    pipelinesRmCommand,
+    pipelinesRemoveCommand
+  ]),
 )

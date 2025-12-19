@@ -13,18 +13,7 @@ import { run } from "./Cli.js"
 // In @effect/cli, options must come before positional arguments
 const checkArgumentOrder = (argv: Array<string>): void => {
   // Known subcommands that should not be treated as positional arguments
-  const subcommands = new Set([
-    "pipelines",
-    "filters",
-    "transformations",
-    "hello",
-    "list",
-    "create",
-    "delete",
-    "remove",
-    "backfill",
-    "test"
-  ])
+  const subcommands = new Set(["pipelines", "filters", "transformations", "hello", "list", "create", "delete", "remove", "backfill", "test", "rm"])
 
   // Only check for --api-key as it's the most commonly misplaced option
   const optionPatterns = ["--api-key"]
@@ -71,6 +60,19 @@ const checkArgumentOrder = (argv: Array<string>): void => {
       process.exit(1)
     }
   }
+}
+
+// Provide a quick "did you mean" hint for top-level command typos before parsing.
+const knownTopLevel = ["pipelines", "filters", "transformations", "hello"]
+const firstNonOption = process.argv.slice(2).find((arg) => !arg.startsWith("-"))
+if (firstNonOption !== undefined && !knownTopLevel.includes(firstNonOption)) {
+  const suggestion = knownTopLevel.find((cmd) => cmd.startsWith(firstNonOption))
+  const message =
+    suggestion !== undefined
+      ? `Unknown command '${firstNonOption}'. Did you mean '${suggestion}'?`
+      : `Unknown command '${firstNonOption}'. Available: ${knownTopLevel.join(", ")}`
+  console.error(message)
+  process.exit(1)
 }
 
 checkArgumentOrder(process.argv)
