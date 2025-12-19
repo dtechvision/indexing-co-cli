@@ -3,46 +3,11 @@ import * as Command from "@effect/cli/Command"
 import * as Options from "@effect/cli/Options"
 import * as HttpClient from "@effect/platform/HttpClient"
 import * as HttpClientRequest from "@effect/platform/HttpClientRequest"
-import * as Config from "effect/Config"
 import * as Console from "effect/Console"
 import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import * as Redacted from "effect/Redacted"
-
-// Configuration for API key - reads from environment variable
-const apiKeyConfig = Config.redacted("API_KEY_INDEXING_CO").pipe(
-  Config.withDescription("API key for indexing.co")
-)
-
-// CLI option for API key
-const apiKeyOption = Options.redacted("api-key").pipe(
-  Options.optional,
-  Options.withDescription("API key for indexing.co (overrides API_KEY_INDEXING_CO env var)")
-)
-
-// Helper function to get API key
-const getApiKey = (cliApiKey: Option.Option<Redacted.Redacted>) =>
-  Effect.gen(function*() {
-    const key = yield* (Option.isSome(cliApiKey)
-      ? Effect.succeed(cliApiKey.value)
-      : Config.option(apiKeyConfig).pipe(
-        Effect.flatMap((maybeKey) =>
-          Option.isSome(maybeKey)
-            ? Effect.succeed(maybeKey.value)
-            : Effect.fail(new Error("API key not found"))
-        )
-      )).pipe(
-        Effect.catchAll(() =>
-          Effect.gen(function*() {
-            yield* Console.error(
-              "API key is required. Set API_KEY_INDEXING_CO environment variable or use --api-key option"
-            )
-            return yield* Effect.fail(new Error("Missing API key"))
-          })
-        )
-      )
-    return key
-  })
+import { apiKeyOption, getApiKey } from "../config.js"
 
 // Helper function to parse and validate filter values
 // Handles both comma-separated strings and individual values
@@ -84,31 +49,91 @@ const parseFilterValues = (rawValues: Iterable<string>) =>
     return values
   })
 
-// Note: List all filters endpoint doesn't exist
-// Use GET /filters/{name} to list values for a specific filter
-
-// Command to list all filters (returns filter names)
-export const filtersListCommand = Command.make("list", { apiKey: apiKeyOption }, (args) =>
-  Effect.gen(function*() {
-    const client = yield* HttpClient.HttpClient
-    const key = yield* getApiKey(args.apiKey)
-
-    const request = HttpClientRequest.get("https://app.indexing.co/dw/filters").pipe(
-      HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key))
+// Command to list all filters or get details of a specific filter
+export const filtersListCommand = Command.make(
+  "list",
+  {
+    apiKey: apiKeyOption,
+    name: Args.text({ name: "name" }).pipe(
+      Args.optional,
+      Args.withDescription("Name of the filter to get details for (omit to list all filters)")
+    ),
+    all: Options.boolean("all").pipe(
+      Options.withDefault(false),
+      Options.withDescription("List all filters (ignores name argument)")
+    ),
+    pageToken: Options.text("page-token").pipe(
+      Options.optional,
+      Options.withDescription("Pagination token for results")
+    ),
+    prefix: Options.text("prefix").pipe(
+      Options.optional,
+      Options.withDescription("Filter values by prefix (e.g., 0x123)")
+    ),
+    includeTimestamps: Options.boolean("include-timestamps").pipe(
+      Options.withDefault(false),
+      Options.withDescription("Include timestamps for when filter values were added")
     )
+  },
+  (args) =>
+    Effect.gen(function*() {
+      const client = yield* HttpClient.HttpClient
+      const key = yield* getApiKey(args.apiKey)
 
-    const response = yield* client.execute(request).pipe(
-      Effect.flatMap((response) => response.json),
-      Effect.catchAll((error) => {
-        return Console.error(`Failed to fetch filters: ${error}`).pipe(
-          Effect.flatMap(() => Effect.fail(error))
+      // If --all flag is set or no name provided, list all filters
+      if (args.all || Option.isNone(args.name)) {
+        const request = HttpClientRequest.get("https://app.indexing.co/dw/filters").pipe(
+          HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key))
         )
-      })
-    )
 
-    yield* Console.log("Filters fetched successfully:")
-    yield* Console.log(JSON.stringify(response, null, 2))
-  }))
+        const response = yield* client.execute(request).pipe(
+          Effect.flatMap((response) => response.json),
+          Effect.catchAll((error) => {
+            return Console.error(`Failed to fetch filters: ${error}`).pipe(
+              Effect.flatMap(() => Effect.fail(error))
+            )
+          })
+        )
+
+        yield* Console.log("Filters fetched successfully:")
+        yield* Console.log(JSON.stringify(response, null, 2))
+      } else {
+        // Get details of a specific filter
+        const filterName = args.name.value
+
+        // Build URL with query parameters
+        const queryParams = new URLSearchParams()
+        if (Option.isSome(args.pageToken)) {
+          queryParams.set("pageToken", args.pageToken.value)
+        }
+        if (Option.isSome(args.prefix)) {
+          queryParams.set("prefix", args.prefix.value)
+        }
+        if (args.includeTimestamps) {
+          queryParams.set("includeTimestamps", "true")
+        }
+
+        const queryString = queryParams.toString()
+        const url = `https://app.indexing.co/dw/filters/${filterName}${queryString ? `?${queryString}` : ""}`
+
+        const request = HttpClientRequest.get(url).pipe(
+          HttpClientRequest.setHeader("X-API-KEY", Redacted.value(key))
+        )
+
+        const response = yield* client.execute(request).pipe(
+          Effect.flatMap((response) => response.json),
+          Effect.catchAll((error) => {
+            return Console.error(`Failed to fetch filter '${filterName}': ${error}`).pipe(
+              Effect.flatMap(() => Effect.fail(error))
+            )
+          })
+        )
+
+        yield* Console.log(`Filter '${filterName}' values:`)
+        yield* Console.log(JSON.stringify(response, null, 2))
+      }
+    })
+)
 
 // Command to remove values from a filter
 export const filtersRemoveCommand = Command.make(
@@ -138,14 +163,36 @@ export const filtersRemoveCommand = Command.make(
       )
       const request = yield* HttpClientRequest.bodyJson(requestBody)(requestBase)
 
-      const response = yield* client.execute(request).pipe(
-        Effect.flatMap((response) => response.json),
+      const httpResponse = yield* client.execute(request).pipe(
         Effect.catchAll((error) => {
           return Console.error(`Failed to remove values from filter: ${error}`).pipe(
             Effect.flatMap(() => Effect.fail(error))
           )
         })
       )
+
+      if (httpResponse.status < 200 || httpResponse.status >= 300) {
+        const errorBody = yield* Effect.catchAll(httpResponse.text, () => Effect.succeed(""))
+        const messageSuffix = errorBody !== "" ? `: ${errorBody}` : ""
+        yield* Console.error(
+          `Failed to remove values from filter '${args.name}': received status ${httpResponse.status}${messageSuffix}`
+        )
+        return yield* Effect.fail(new Error(`Filter removal failed with status ${httpResponse.status}`))
+      }
+
+      const response = yield* httpResponse.json.pipe(
+        Effect.catchAll((error) => {
+          return Console.error(`Failed to parse filter removal response: ${error}`).pipe(
+            Effect.flatMap(() => Effect.fail(error))
+          )
+        })
+      )
+
+      if (typeof response === "object" && response !== null && "error" in response && response.error) {
+        const errorMessage = String((response as { error: unknown }).error)
+        yield* Console.error(`Failed to remove values from filter '${args.name}': ${errorMessage}`)
+        return yield* Effect.fail(new Error(`Filter removal failed: ${errorMessage}`))
+      }
 
       yield* Console.log(`Values removed from filter '${args.name}' successfully:`)
       yield* Console.log(JSON.stringify(response, null, 2))
@@ -180,14 +227,36 @@ export const filtersCreateCommand = Command.make(
       )
       const request = yield* HttpClientRequest.bodyJson(requestBody)(requestBase)
 
-      const response = yield* client.execute(request).pipe(
-        Effect.flatMap((response) => response.json),
+      const httpResponse = yield* client.execute(request).pipe(
         Effect.catchAll((error) => {
           return Console.error(`Failed to create filter: ${error}`).pipe(
             Effect.flatMap(() => Effect.fail(error))
           )
         })
       )
+
+      if (httpResponse.status < 200 || httpResponse.status >= 300) {
+        const errorBody = yield* Effect.catchAll(httpResponse.text, () => Effect.succeed(""))
+        const messageSuffix = errorBody !== "" ? `: ${errorBody}` : ""
+        yield* Console.error(
+          `Failed to create filter '${args.name}': received status ${httpResponse.status}${messageSuffix}`
+        )
+        return yield* Effect.fail(new Error(`Filter creation failed with status ${httpResponse.status}`))
+      }
+
+      const response = yield* httpResponse.json.pipe(
+        Effect.catchAll((error) => {
+          return Console.error(`Failed to parse filter creation response: ${error}`).pipe(
+            Effect.flatMap(() => Effect.fail(error))
+          )
+        })
+      )
+
+      if (typeof response === "object" && response !== null && "error" in response && response.error) {
+        const errorMessage = String((response as { error: unknown }).error)
+        yield* Console.error(`Failed to create filter '${args.name}': ${errorMessage}`)
+        return yield* Effect.fail(new Error(`Filter creation failed: ${errorMessage}`))
+      }
 
       yield* Console.log(`Filter '${args.name}' created successfully:`)
       yield* Console.log(JSON.stringify(response, null, 2))

@@ -1,5 +1,14 @@
 # @dtechvision/indexingco-cli
 
+## 0.0.5
+
+### Patch Changes
+
+- Centralize API key handling in `config.ts` and share a ConfigProvider so all commands consistently read `API_KEY_INDEXINGCO`/`--api-key`.
+- Add a `CLI_DEV` toggle via Effect Config to enable verbose error reporting; keep defaults quiet for normal use.
+- Improve filter commands: require values for delete to match the API, restore proper error surfacing for create/remove, and fix the `Option` import crash in `getApiKey`.
+- Add argument-order validation and better HTTP error handling so misordered `--api-key` or API failures emit actionable messages.
+
 ## 0.0.4
 
 ### Patch Changes
