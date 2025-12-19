@@ -63,6 +63,13 @@ const checkArgumentOrder = (argv: Array<string>): void => {
       console.error(`Tip: You can also set the API_KEY_INDEXINGCO environment variable to avoid passing --api-key.`)
       process.exit(1)
     }
+
+    // Generic catch-all hint: any option after a positional is likely a mistake
+    if (laterArg.startsWith("-")) {
+      console.error("Hint: Options must come before positional args for this CLI.")
+      console.error("Example: indexingco pipelines test --network base_sepolia --beat 123 my_pipeline")
+      process.exit(1)
+    }
   }
 }
 
