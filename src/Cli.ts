@@ -8,5 +8,5 @@ const cli = Command.make("indexingco").pipe(
 
 export const run = Command.run(cli, {
   name: "Indexing CLI",
-  version: "0.0.5"
+  version: "0.0.6"
 })
