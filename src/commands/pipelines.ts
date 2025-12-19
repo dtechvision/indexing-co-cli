@@ -216,16 +216,16 @@ export const pipelinesTestCommand = Command.make(
   {
     apiKey: apiKeyOption,
     name: Args.text({ name: "name" }).pipe(Args.withDescription("Name of the pipeline")),
-    network: Args.text({ name: "network" }).pipe(
-      Args.withDescription("Network to test against (e.g., base_sepolia, farcaster)")
+    network: Options.text("network").pipe(
+      Options.withDescription("Network to test against (e.g., base_sepolia, farcaster)")
     ),
-    beat: Args.text({ name: "beat" }).pipe(
-      Args.optional,
-      Args.withDescription("Block beat to test against (e.g., 123)")
+    beat: Options.text("beat").pipe(
+      Options.optional,
+      Options.withDescription("Block beat to test against (e.g., 123)")
     ),
-    hash: Args.text({ name: "hash" }).pipe(
-      Args.optional,
-      Args.withDescription("Hash to test against (e.g., 0x123abc for block hash, or cast hash for Farcaster)")
+    hash: Options.text("hash").pipe(
+      Options.optional,
+      Options.withDescription("Hash to test against (e.g., 0x123abc for block hash, or cast hash for Farcaster)")
     )
   },
   (args) =>
@@ -233,18 +233,25 @@ export const pipelinesTestCommand = Command.make(
       const client = yield* HttpClient.HttpClient
       const key = yield* getApiKey(args.apiKey)
 
+      const beat = Option.isSome(args.beat) ? args.beat.value : undefined
+      const hash = Option.isSome(args.hash) ? args.hash.value : undefined
+
       // Validate that either beat or hash is provided
-      if (Option.isNone(args.beat) && Option.isNone(args.hash)) {
+      if (beat === undefined && hash === undefined) {
         yield* Console.error("Either beat or hash must be provided")
         return yield* Effect.fail(new Error("Missing required parameter: beat or hash"))
+      }
+      if (beat !== undefined && hash !== undefined) {
+        yield* Console.error("Provide only one of beat or hash, not both")
+        return yield* Effect.fail(new Error("Invalid parameters: both beat and hash provided"))
       }
 
       // Build URL with appropriate parameter
       let url = `https://app.indexing.co/dw/pipelines/${args.name}/test/${args.network}`
-      if (Option.isSome(args.beat)) {
-        url += `/${args.beat.value}`
-      } else if (Option.isSome(args.hash)) {
-        url += `/${args.hash.value}`
+      if (beat !== undefined) {
+        url += `/${beat}`
+      } else if (hash !== undefined) {
+        url += `/${hash}`
       }
 
       const request = HttpClientRequest.post(url).pipe(
