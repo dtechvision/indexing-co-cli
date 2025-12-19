@@ -6,9 +6,10 @@ import * as HttpClient from "@effect/platform/HttpClient"
 import type * as HttpClientRequest from "@effect/platform/HttpClientRequest"
 import * as HttpClientResponse from "@effect/platform/HttpClientResponse"
 import { describe, expect, it } from "@effect/vitest"
+import { beforeAll } from "vitest"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
-import { filtersCreateCommand, filtersRemoveCommand } from "../src/commands/filters.js"
+import { filtersCreateCommand, filtersDeleteCommand, filtersRemoveCommand, filtersRmCommand } from "../src/commands/filters.js"
 
 const run = Command.run({
   name: "indexingco-cli-test",
@@ -40,6 +41,10 @@ const cliLayer = Layer.mergeAll(
   NodePath.layer,
   NodeTerminal.layer
 )
+
+beforeAll(() => {
+  process.env.API_KEY_INDEXINGCO = "test-key"
+})
 
 describe("filters commands", () => {
   it.effect("filters create serializes repeated values into JSON array", () =>
@@ -196,6 +201,40 @@ describe("filters commands", () => {
       expect(JSON.parse(body.body)).toStrictEqual({
         values: ["0x111", "0x222", "0x333"]
       })
+    }))
+
+  it.effect("filters delete alias behaves like remove", () =>
+    Effect.gen(function*() {
+      const captured: Array<HttpClientRequest.HttpClientRequest> = []
+      const client = makeMockHttpClient((request) => {
+        captured.push(request)
+      })
+
+      const program = run(filtersDeleteCommand)(["--api-key", "test-key", "--values", "0xabc", "alias-delete"])
+      const layer = Layer.merge(cliLayer, Layer.succeed(HttpClient.HttpClient, client))
+      yield* Effect.provide(program, layer)
+
+      expect(captured.length).toBe(1)
+      const request = captured[0]
+      expect(request.method).toBe("DELETE")
+      expect(request.url).toBe("https://app.indexing.co/dw/filters/alias-delete")
+    }))
+
+  it.effect("filters rm alias behaves like remove", () =>
+    Effect.gen(function*() {
+      const captured: Array<HttpClientRequest.HttpClientRequest> = []
+      const client = makeMockHttpClient((request) => {
+        captured.push(request)
+      })
+
+      const program = run(filtersRmCommand)(["--api-key", "test-key", "--values", "0xabc", "alias-rm"])
+      const layer = Layer.merge(cliLayer, Layer.succeed(HttpClient.HttpClient, client))
+      yield* Effect.provide(program, layer)
+
+      expect(captured.length).toBe(1)
+      const request = captured[0]
+      expect(request.method).toBe("DELETE")
+      expect(request.url).toBe("https://app.indexing.co/dw/filters/alias-rm")
     }))
 
   it.effect("filters create trims whitespace from comma-separated values", () =>
