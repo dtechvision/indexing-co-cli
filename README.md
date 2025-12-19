@@ -63,7 +63,7 @@ Set the API key as an environment variable:
 
 ```bash
 export API_KEY_INDEXING_CO="your-api-key-here"
-indexingco-cli pipelines
+indexingco pipelines
 ```
 
 ### CLI Argument
@@ -71,7 +71,7 @@ indexingco-cli pipelines
 Pass the API key as a command line argument:
 
 ```bash
-indexingco-cli pipelines --api-key "your-api-key-here"
+indexingco pipelines --api-key "your-api-key-here"
 ```
 
 ### Available Commands
@@ -99,16 +99,16 @@ You can create filters using multiple `--values` flags or comma-separated values
 
 ```bash
 # Using separate flags (recommended)
-indexingco-cli filters create my_filter --values 0xaaa --values 0xbbb --values 0xccc
+indexingco filters create my_filter --values 0xaaa --values 0xbbb --values 0xccc
 
 # Using comma-separated values (also supported)
-indexingco-cli filters create my_filter --values "0xaaa,0xbbb,0xccc"
+indexingco filters create my_filter --values "0xaaa,0xbbb,0xccc"
 
 # Mixed approach (both work)
-indexingco-cli filters create my_filter --values 0xaaa,0xbbb --values 0xccc
+indexingco filters create my_filter --values 0xaaa,0xbbb --values 0xccc
 
 # Real-world example with Ethereum addresses
-indexingco-cli filters create sample_dk_filter \
+indexingco filters create sample_dk_filter \
   --values "0x843A12d6D1FDD63d7fC8EccA2249E5C7623deD32,0x31FF4F78245846C7675389709aDa77e5f25f27F2,0xA549779995A5d6e3fFf907A92D735d70F3aCf96f"
 ```
 
@@ -124,23 +124,23 @@ Same flexibility applies to removing values:
 
 ```bash
 # Remove multiple values
-indexingco-cli filters remove my_filter --values 0xaaa --values 0xbbb
+indexingco filters remove my_filter --values 0xaaa --values 0xbbb
 
 # Or with comma-separated values
-indexingco-cli filters remove my_filter --values "0xaaa,0xbbb"
+indexingco filters remove my_filter --values "0xaaa,0xbbb"
 ```
 
 #### List Filters
 
 ```bash
 # List all filters
-indexingco-cli filters list
+indexingco filters list
 ```
 
 ### Help
 
 ```bash
-indexingco-cli --help
-indexingco-cli pipelines --help
-indexingco-cli filters --help
+indexingco --help
+indexingco pipelines --help
+indexingco filters --help
 ```

@@ -13,7 +13,11 @@ const program = Effect.gen(function*() {
     type: json.type,
     description: json.description,
     main: "bin.cjs",
-    bin: "bin.cjs",
+    // Explicit bin map so npm creates both aliases.
+    bin: {
+      indexingco: "bin.cjs",
+      "indexingco-cli": "bin.cjs"
+    },
     engines: json.engines,
     dependencies: json.dependencies,
     peerDependencies: json.peerDependencies,
