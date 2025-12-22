@@ -30,8 +30,7 @@
   "bun": {
     "patches": {
       "@changesets/assemble-release-plan@6.0.8": "patches/@changesets__assemble-release-plan@6.0.8.patch",
-      "@changesets/get-github-info@0.6.0": "patches/@changesets__get-github-info@0.6.0.patch",
-      "@effect/vitest@0.25.1": "patches/@effect__vitest@0.25.1.patch"
+      "@changesets/get-github-info@0.6.0": "patches/@changesets__get-github-info@0.6.0.patch"
     }
   },
   "devDependencies": {
@@ -59,11 +58,10 @@
     "eslint-plugin-sort-destructure-keys": "^2.0.0",
     "tsup": "^8.2.4",
     "typescript": "^5.6.2",
-    "vitest": "^4.0.15"
+    "vitest": "^4.0.16"
   },
   "overrides": {
-    "@changesets/get-github-info@0.6.0": "patches/@changesets__get-github-info@0.6.0.patch",
-    "@effect/vitest@0.25.1": "patches/@effect__vitest@0.25.1.patch"
+    "@changesets/get-github-info@0.6.0": "patches/@changesets__get-github-info@0.6.0.patch"
   },
   "bin": {
     "indexingco": "dist/bin.cjs"

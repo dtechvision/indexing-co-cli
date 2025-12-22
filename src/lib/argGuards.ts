@@ -17,6 +17,9 @@ const knownSubcommands = new Set([
 
 const optionPatterns = ["--api-key", "--network", "--beat", "--hash"]
 
+const matchesOption = (arg: string): string | undefined =>
+  optionPatterns.find((opt) => arg === opt || arg.startsWith(`${opt}=`))
+
 export const validateTopLevelCommand = (argv: Array<string>): string | undefined => {
   const firstNonOption = argv.find((arg) => !arg.startsWith("-"))
   if (firstNonOption !== undefined && !knownTopLevel.includes(firstNonOption)) {
@@ -35,6 +38,14 @@ export const validateArgumentOrder = (argv: Array<string>): string | undefined =
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
+    const optionMatch = matchesOption(arg)
+    if (optionMatch !== undefined) {
+      // Skip the next token if the option uses a separated value (e.g., --network base_sepolia)
+      if (!arg.includes("=") && argv[i + 1] !== undefined && !argv[i + 1].startsWith("-")) {
+        i += 1
+      }
+      continue
+    }
     if (arg.startsWith("-")) continue
     if (knownSubcommands.has(arg)) continue
     firstPositionalIdx = i
@@ -46,7 +57,8 @@ export const validateArgumentOrder = (argv: Array<string>): string | undefined =
 
   for (let j = firstPositionalIdx + 1; j < argv.length; j++) {
     const laterArg = argv[j]
-    if (optionPatterns.some((opt) => laterArg === opt || laterArg.startsWith(`${opt}=`))) {
+    const optionMatch = matchesOption(laterArg)
+    if (optionMatch !== undefined) {
       return [
         `Option '${laterArg}' must come before positional arguments.`,
         "",

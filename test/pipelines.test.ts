@@ -9,7 +9,6 @@ import { describe, expect, it } from "@effect/vitest"
 import { beforeAll } from "vitest"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
-import * as Option from "effect/Option"
 import { pipelinesDeleteCommand, pipelinesRemoveCommand, pipelinesRmCommand, pipelinesTestCommand } from "../src/commands/pipelines.js"
 
 const run = Command.run({
