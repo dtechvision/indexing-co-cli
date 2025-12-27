@@ -1,26 +1,37 @@
 name: Release
-
 on:
   push:
     branches: [master]
-  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
   release:
+    name: Release
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     permissions:
       contents: write
       id-token: write
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install dependencies
         uses: ./.github/actions/setup
+      - name: Get changeset info
+        id: changeset-info
+        run: |
+          # Parse changeset files to get package bump info (format: "@pkg/name": patch)
+          if ls .changeset/*.md 1>/dev/null 2>&1; then
+            PACKAGES=$(grep -h "^\"@" .changeset/*.md 2>/dev/null | sed 's/"//g' | sed 's/: /(/; s/$/)/' | tr '\n' ', ' | sed 's/, $//')
+            echo "packages=$PACKAGES" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create Release Pull Request or Publish
+        id: changesets
         uses: changesets/action@v1
         with:
           version: bun run changeset-version
@@ -28,3 +39,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Update PR title with version info
+        if: steps.changesets.outputs.pullRequestNumber && steps.changeset-info.outputs.packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.changesets.outputs.pullRequestNumber }}
+          PACKAGES: ${{ steps.changeset-info.outputs.packages }}
+        run: |
+          gh pr edit "$PR_NUMBER" --title "chore(release): $PACKAGES"
