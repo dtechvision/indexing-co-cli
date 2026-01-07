@@ -4,10 +4,10 @@ import * as NodeContext from "@effect/platform-node/NodeContext"
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
 import * as FetchHttpClient from "@effect/platform/FetchHttpClient"
 import * as Config from "effect/Config"
+import * as ConfigProvider from "effect/ConfigProvider"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import { run } from "./Cli.js"
-import * as ConfigProvider from "effect/ConfigProvider"
 import { validateArgumentOrder, validateTopLevelCommand } from "./lib/argGuards.js"
 
 const argv = process.argv.slice(2)

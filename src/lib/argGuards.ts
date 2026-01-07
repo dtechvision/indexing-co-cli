@@ -15,10 +15,37 @@ const knownSubcommands = new Set([
   "rm"
 ])
 
-const optionPatterns = ["--api-key", "--network", "--beat", "--hash"]
+// Options that take a value (used to skip the value when detecting positional args).
+// Boolean options like --all, --include-timestamps are intentionally omitted.
+// Keep this list in sync when adding new options to commands.
+const optionsWithValues = [
+  // Global
+  "--api-key",
+  // pipelines create
+  "--transformation",
+  "--filter",
+  "--filter-keys",
+  "--networks",
+  "--webhook-url",
+  "--auth-header",
+  "--auth-value",
+  // pipelines backfill
+  "--network",
+  "--value",
+  "--beat-start",
+  "--beat-end",
+  "--beats",
+  // pipelines test / transformations test
+  "--beat",
+  "--hash",
+  // filters
+  "--values",
+  "--page-token",
+  "--prefix"
+]
 
-const matchesOption = (arg: string): string | undefined =>
-  optionPatterns.find((opt) => arg === opt || arg.startsWith(`${opt}=`))
+const matchesOptionWithValue = (arg: string): string | undefined =>
+  optionsWithValues.find((opt) => arg === opt || arg.startsWith(`${opt}=`))
 
 export const validateTopLevelCommand = (argv: Array<string>): string | undefined => {
   const firstNonOption = argv.find((arg) => !arg.startsWith("-"))
@@ -35,10 +62,25 @@ export const validateArgumentOrder = (argv: Array<string>): string | undefined =
   // Find the first true positional argument (not a subcommand, not an option)
   let firstPositionalIdx = -1
   let firstPositionalArg = ""
+  let lastPositionalCandidate: string | undefined
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
-    const optionMatch = matchesOption(arg)
+    const optionMatch = matchesOptionWithValue(arg)
+    if (optionMatch !== undefined) {
+      if (!arg.includes("=") && argv[i + 1] !== undefined && !argv[i + 1].startsWith("-")) {
+        i += 1
+      }
+      continue
+    }
+    if (arg.startsWith("-")) continue
+    if (knownSubcommands.has(arg)) continue
+    lastPositionalCandidate = arg
+  }
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i]
+    const optionMatch = matchesOptionWithValue(arg)
     if (optionMatch !== undefined) {
       // Skip the next token if the option uses a separated value (e.g., --network base_sepolia)
       if (!arg.includes("=") && argv[i + 1] !== undefined && !argv[i + 1].startsWith("-")) {
@@ -46,7 +88,19 @@ export const validateArgumentOrder = (argv: Array<string>): string | undefined =
       }
       continue
     }
-    if (arg.startsWith("-")) continue
+    if (arg.startsWith("-")) {
+      // For unknown options, skip potential values unless it looks like the final positional.
+      if (
+        !arg.includes("=") &&
+        argv[i + 1] !== undefined &&
+        !argv[i + 1].startsWith("-") &&
+        !knownSubcommands.has(argv[i + 1]) &&
+        argv[i + 1] !== lastPositionalCandidate
+      ) {
+        i += 1
+      }
+      continue
+    }
     if (knownSubcommands.has(arg)) continue
     firstPositionalIdx = i
     firstPositionalArg = arg
@@ -57,7 +111,7 @@ export const validateArgumentOrder = (argv: Array<string>): string | undefined =
 
   for (let j = firstPositionalIdx + 1; j < argv.length; j++) {
     const laterArg = argv[j]
-    const optionMatch = matchesOption(laterArg)
+    const optionMatch = matchesOptionWithValue(laterArg)
     if (optionMatch !== undefined) {
       return [
         `Option '${laterArg}' must come before positional arguments.`,

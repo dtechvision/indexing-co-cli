@@ -6,10 +6,15 @@ import * as HttpClient from "@effect/platform/HttpClient"
 import type * as HttpClientRequest from "@effect/platform/HttpClientRequest"
 import * as HttpClientResponse from "@effect/platform/HttpClientResponse"
 import { describe, expect, it } from "@effect/vitest"
-import { beforeAll } from "vitest"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
-import { pipelinesDeleteCommand, pipelinesRemoveCommand, pipelinesRmCommand, pipelinesTestCommand } from "../src/commands/pipelines.js"
+import { beforeAll } from "vitest"
+import {
+  pipelinesDeleteCommand,
+  pipelinesRemoveCommand,
+  pipelinesRmCommand,
+  pipelinesTestCommand
+} from "../src/commands/pipelines.js"
 
 const run = Command.run({
   name: "indexingco-cli-test",
@@ -113,14 +118,12 @@ describe("pipelines commands", () => {
     Effect.gen(function*() {
       const captured: Array<HttpClientRequest.HttpClientRequest> = []
       const client = makeMockHttpClient((request) => captured.push(request))
-
-      const runWith = (cmd: Command.Command<typeof pipelinesDeleteCommand>) =>
-        run(cmd)(["--api-key", "test-key", "demo-delete"])
-
       const layer = Layer.merge(cliLayer, Layer.succeed(HttpClient.HttpClient, client))
-      yield* Effect.provide(runWith(pipelinesDeleteCommand), layer)
-      yield* Effect.provide(runWith(pipelinesRemoveCommand), layer)
-      yield* Effect.provide(runWith(pipelinesRmCommand), layer)
+      const args = ["--api-key", "test-key", "demo-delete"]
+
+      yield* Effect.provide(run(pipelinesDeleteCommand)(args), layer)
+      yield* Effect.provide(run(pipelinesRemoveCommand)(args), layer)
+      yield* Effect.provide(run(pipelinesRmCommand)(args), layer)
 
       expect(captured.length).toBe(3)
       captured.forEach((req) => {

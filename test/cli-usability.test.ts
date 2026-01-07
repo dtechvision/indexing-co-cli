@@ -24,4 +24,39 @@ describe("CLI usability guards (pure)", () => {
     ])
     expect(message).toBeUndefined()
   })
+
+  it("skips values for options listed in optionsWithValues", () => {
+    // This tests the fix for the bug where --transformation value was treated as positional
+    const message = validateArgumentOrder([
+      "pipelines",
+      "create",
+      "--transformation",
+      "example-transformation",
+      "--filter",
+      "example-filter",
+      "--filter-keys",
+      "contract_address",
+      "--networks",
+      "BASE_SEPOLIA",
+      "--webhook-url",
+      "https://example.com/api/webhooks/events",
+      "example-pipeline"
+    ])
+    expect(message).toBeUndefined()
+  })
+
+  it("warns when an unknown option would otherwise swallow the positional arg", () => {
+    // Unknown options might be boolean flags, so don't treat the next token as a value
+    // when it looks like the final positional argument.
+    const message = validateArgumentOrder([
+      "pipelines",
+      "create",
+      "--unknown-flag",
+      "my-pipeline",
+      "--filter",
+      "f"
+    ])
+    // --filter is a known option, so we get the specific error message
+    expect(message).toContain("must come before positional arguments")
+  })
 })
