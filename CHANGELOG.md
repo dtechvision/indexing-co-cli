@@ -1,5 +1,15 @@
 # @dtechvision/indexingco-cli
 
+## 0.0.7
+
+### Patch Changes
+
+- [#4](https://github.com/dtechvision/indexing-co-cli/pull/4) [`36ba4b8`](https://github.com/dtechvision/indexing-co-cli/commit/36ba4b849e2389cb8fc1447536d774abd2dd3134) Thanks [@SamuelLHuber](https://github.com/SamuelLHuber)! - Fixed CLI argument parsing for commands with many options
+
+  - Fixed a bug where option values (e.g., `--transformation my-value`) were incorrectly detected as positional arguments, causing a misleading hint about argument ordering
+  - Unified `pipelines create` to use positional `name` argument (at the end) instead of `--name` option, matching the pattern used by `filters create` and `transformations create`
+  - Added CLAUDE.md with development guidance for future CLI option additions
+
 ## 0.0.6
 
 ### Patch Changes
