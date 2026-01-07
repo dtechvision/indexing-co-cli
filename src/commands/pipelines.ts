@@ -37,9 +37,7 @@ export const pipelinesCreateCommand = Command.make(
   "create",
   {
     apiKey: apiKeyOption,
-    name: Options.text("name").pipe(
-      Options.withDescription("Name of the pipeline")
-    ),
+    name: Args.text({ name: "name" }).pipe(Args.withDescription("Name of the pipeline")),
     transformation: Options.text("transformation").pipe(
       Options.withDescription("Name of the transformation to use")
     ),
@@ -318,5 +316,5 @@ export const pipelinesCommand = Command.make("pipelines").pipe(
     pipelinesDeleteCommand,
     pipelinesRmCommand,
     pipelinesRemoveCommand
-  ]),
+  ])
 )

@@ -32,7 +32,7 @@ sequenceDiagram
     API-->>CLI: ✓ Transformation created
 
     Note over User,CLI: Step 4: Create Pipeline
-    User->>CLI: pipelines create --name my_pipeline<br/>--transformation my_transform<br/>--filter my_filter<br/>--networks base_sepolia<br/>--webhook-url https://...
+    User->>CLI: pipelines create my_pipeline<br/>--transformation my_transform<br/>--filter my_filter<br/>--networks base_sepolia<br/>--webhook-url https://...
     CLI->>API: POST /dw/pipelines
     API-->>CLI: ✓ Pipeline active
 ```
